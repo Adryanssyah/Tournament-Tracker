@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shuttle Draw — Badminton Tournament Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --paper:#F1F3EC;
+    --paper-raised:#FFFFFF;
+    --ink:#152A1F;
+    --ink-soft:#4B5D52;
+    --court:#1F5C3F;
+    --court-deep:#123524;
+    --court-tint:#E4EFE8;
+    --cork:#D98E3B;
+    --cork-deep:#B5701F;
+    --line:#DDE2D6;
+    --win:#2F9E58;
+    --loss:#C0453B;
+    --shadow: 0 1px 2px rgba(21,42,31,0.06), 0 6px 16px rgba(21,42,31,0.06);
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{font-family:'Outfit',system-ui,sans-serif;}
+  button{font-family:inherit;}
+  .app{max-width:1280px;margin:0 auto;padding:20px 20px 60px;}
+
+  /* Dashboard gets a fixed viewport: header stays put, only the match list
+     scrolls, and the standings column stays visible the whole time. */
+  html.dashboard-mode, body.dashboard-mode{height:100%;overflow:hidden;}
+  body.dashboard-mode .app{
+    height:100vh; max-width:1280px; margin:0 auto; padding:20px;
+    display:flex; flex-direction:column; box-sizing:border-box;
+  }
+
+  /* ---------- Setup screens ---------- */
+  .setup-wrap{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .setup-card{
+    background:var(--paper-raised);
+    border-radius:20px;
+    box-shadow:var(--shadow);
+    width:100%;
+    max-width:620px;
+    padding:36px 34px 30px;
+    position:relative;
+    overflow:hidden;
+  }
+  .setup-card::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:6px;
+    background:linear-gradient(90deg,var(--court),var(--cork));
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px; margin-bottom:22px;
+  }
+  .brand .mark{
+    width:34px;height:34px;border-radius:9px;background:var(--court);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .brand .mark svg{width:19px;height:19px;}
+  .brand-name{font-weight:700;font-size:15px;letter-spacing:0.2px;color:var(--court-deep);}
+  .brand-name span{color:var(--cork-deep);}
+
+  .step-dots{display:flex;gap:6px;margin-bottom:26px;}
+  .step-dots i{
+    height:4px;flex:1;border-radius:3px;background:var(--line);
+    transition:background .25s;
+  }
+  .step-dots i.done, .step-dots i.active{background:var(--court);}
+
+  .setup-card h2{font-size:23px;margin:0 0 6px;font-weight:700;color:var(--ink);}
+  .setup-sub{color:var(--ink-soft);font-size:14.5px;margin:0 0 24px;line-height:1.5;}
+
+  .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:8px;}
+  .mode-card{
+    border:1.5px solid var(--line); border-radius:14px; padding:20px 16px;
+    cursor:pointer; text-align:left; background:var(--paper); transition:.15s;
+  }
+  .mode-card:hover{border-color:var(--court);}
+  .mode-card.selected{border-color:var(--court); background:var(--court-tint);}
+  .mode-card .icon{font-size:22px;margin-bottom:10px;display:block;}
+  .mode-card .title{font-weight:700;font-size:16px;margin-bottom:4px;}
+  .mode-card .desc{font-size:13px;color:var(--ink-soft);line-height:1.4;}
+
+  .count-row{display:flex;align-items:center;gap:16px;margin:22px 0 6px;}
+  .count-btn{
+    width:44px;height:44px;border-radius:12px;border:1.5px solid var(--line);
+    background:var(--paper-raised); font-size:20px; cursor:pointer; color:var(--court-deep);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .count-btn:hover{border-color:var(--court);}
+  .count-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .count-display{
+    flex:1; text-align:center; font-family:'Outfit'; font-size:38px; font-weight:700;
+  }
+  .count-hint{text-align:center;color:var(--ink-soft);font-size:13px;margin-bottom:10px;}
+  .combo-preview{
+    background:var(--court-tint); border-radius:12px; padding:16px 18px;
+    font-size:13.5px; color:var(--court-deep); margin-top:16px; line-height:1.5;
+  }
+  .combo-preview b{font-family:'Outfit';font-size:16px;}
+  .summary-title{font-family:'Outfit';font-weight:700;font-size:13px;letter-spacing:.2px;margin-bottom:10px;color:var(--court-deep);}
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+  .summary-stat{background:var(--paper-raised);border-radius:10px;padding:10px 8px;text-align:center;}
+  .summary-stat .num{font-family:'Outfit';font-weight:700;font-size:22px;color:var(--court-deep);line-height:1.1;}
+  .summary-stat .lbl{font-size:11px;color:var(--ink-soft);margin-top:3px;}
+  .summary-note{font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
+  @media (max-width:480px){ .summary-grid{grid-template-columns:1fr 1fr;} }
+
+  .player-list{display:flex;flex-direction:column;gap:10px;max-height:44vh;overflow-y:auto;padding-right:4px;margin-bottom:6px;}
+  .player-row{display:flex;align-items:center;gap:10px;}
+  .player-num{
+    width:26px;height:26px;border-radius:50%;background:var(--court-tint);color:var(--court-deep);
+    font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .player-row input[type=text]{
+    flex:1;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
+    font-size:14.5px;font-family:inherit;color:var(--ink);background:var(--paper-raised);
+  }
+  .player-row input[type=text]:focus{outline:none;border-color:var(--court);}
+  .swatch{
+    width:22px;height:22px;border-radius:50%;border:2px solid rgba(0,0,0,0.08);
+    cursor:pointer;flex-shrink:0;position:relative;
+  }
+  .swatch.taken-by-other{opacity:.25;cursor:not-allowed;}
+  .swatch.chosen::after{
+    content:"✓"; position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:11px;font-weight:700;
+  }
+  .color-picker{display:flex;gap:6px;flex-shrink:0;}
+
+  .setup-actions{display:flex;justify-content:space-between;align-items:center;margin-top:24px;gap:10px;}
+  .btn{
+    border:none;border-radius:11px;padding:12px 20px;font-size:14.5px;font-weight:600;
+    cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:.15s;
+  }
+  .btn-primary{background:var(--court);color:#fff;}
+  .btn-primary:hover{background:var(--court-deep);}
+  .btn-primary:disabled{background:#B9C4BC;cursor:not-allowed;}
+  .btn-ghost{background:transparent;color:var(--ink-soft);}
+  .btn-ghost:hover{color:var(--ink);}
+  .btn-cork{background:var(--cork);color:#fff;}
+  .btn-cork:hover{background:var(--cork-deep);}
+  .btn-outline{background:var(--paper-raised);color:var(--ink);border:1.5px solid var(--line);}
+  .btn-outline:hover{border-color:var(--court);}
+  .btn-danger-outline{background:var(--paper-raised);color:var(--loss);border:1.5px solid #EFC7C2;}
+  .btn-danger-outline:hover{border-color:var(--loss);}
+  .btn-sm{padding:8px 13px;font-size:13px;border-radius:9px;}
+  .error-text{color:var(--loss);font-size:13px;margin-top:8px;}
+
+  /* ---------- Dashboard ---------- */
+  .topbar{
+    background:var(--court-deep); color:#fff; border-radius:18px;
+    padding:18px 22px; margin-bottom:20px;
+    display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between;
+  }
+  .topbar-left{display:flex;align-items:center;gap:12px;min-width:200px;}
+  .topbar-left .mark{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.14);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .topbar-left .mark svg{width:20px;height:20px;}
+  .topbar-title{font-weight:700;font-size:17px;line-height:1.2;}
+  .topbar-sub{font-size:12.5px;color:rgba(255,255,255,0.65);}
+  .progress-wrap{flex:1;min-width:220px;max-width:360px;}
+  .progress-label{display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,0.75);margin-bottom:6px;}
+  .progress-track{height:8px;border-radius:5px;background:rgba(255,255,255,0.16);overflow:hidden;}
+  .progress-fill{height:100%;background:var(--cork);border-radius:5px;transition:width .3s ease;}
+  .topbar-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .topbar-actions .btn{padding:9px 14px;font-size:13px;}
+  .topbar-actions .btn-outline{background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.22);}
+  .topbar-actions .btn-outline:hover{background:rgba(255,255,255,0.16);border-color:rgba(255,255,255,0.4);}
+  .topbar-actions .btn-danger-outline{background:rgba(255,255,255,0.08);color:#FFC9C2;border-color:rgba(255,255,255,0.22);}
+  .topbar-actions .btn-danger-outline:hover{border-color:#FFC9C2;}
+
+  .layout{display:grid;grid-template-columns:1.6fr 1fr;gap:20px;align-items:start;}
+  body.dashboard-mode .layout{flex:1 1 auto;min-height:0;align-items:stretch;}
+  body.dashboard-mode .panel{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+  body.dashboard-mode .panel-head{flex:0 0 auto;}
+  body.dashboard-mode .matches-scroll{flex:1 1 auto;overflow-y:auto;padding-right:6px;margin:0 -6px 0 0;}
+  body.dashboard-mode .standings-scroll{flex:1 1 auto;overflow-y:auto;max-height:none;}
+  .phase-progress-line{font-size:12px;color:rgba(255,255,255,0.65);margin-top:2px;}
+
+  .standings-toggle-btn{display:none;}
+  @media (max-width:920px){
+    .layout{grid-template-columns:1fr;}
+    body.dashboard-mode .standings-panel{
+      display:none;
+      position:fixed; left:0; right:0; bottom:0; top:12vh; z-index:900;
+      border-radius:20px 20px 0 0; margin:0; box-shadow:0 -8px 30px rgba(0,0,0,0.25);
+    }
+    body.dashboard-mode .standings-panel.sheet-open{display:flex;}
+    .standings-sheet-backdrop{
+      display:none; position:fixed; inset:0; background:rgba(18,53,36,0.4); z-index:899;
+    }
+    .standings-sheet-backdrop.show{display:block;}
+    .standings-toggle-btn{display:inline-flex;}
+    .sheet-close-row{display:flex;justify-content:flex-end;flex:0 0 auto;margin-bottom:8px;}
+  }
+
+  .panel{
+    background:var(--paper-raised); border-radius:16px; box-shadow:var(--shadow);
+    padding:18px 18px 20px;
+  }
+  .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+  .panel-head h2{font-size:17px;margin:0;font-weight:700;}
+  .filters{display:flex;gap:6px;background:var(--paper);padding:4px;border-radius:10px;}
+  .filters button{
+    border:none;background:transparent;padding:7px 12px;border-radius:8px;font-size:12.5px;
+    font-weight:600;color:var(--ink-soft);cursor:pointer;
+  }
+  .filters button.active{background:var(--paper-raised);color:var(--court-deep);box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+
+  .match-grid{display:flex;flex-direction:column;gap:12px;}
+
+  .phase-header{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin:18px 0 10px; padding:10px 14px; border-radius:12px;
+    background:var(--court-tint); flex-wrap:wrap;
+  }
+  .phase-header:first-child{margin-top:2px;}
+  .phase-title{font-family:'Outfit';font-weight:700;font-size:14px;color:var(--court-deep);letter-spacing:.2px;}
+  .phase-status{font-size:12px;font-weight:600;color:var(--ink-soft);}
+  .phase-status.complete{color:var(--win);}
+
+  .fairness-panel{margin-top:16px;}
+  .fairness-badge{
+    display:inline-flex;align-items:center;gap:6px;background:#DFF3E6;color:var(--win);
+    font-size:12.5px;font-weight:700;padding:6px 12px;border-radius:20px;margin-bottom:12px;
+  }
+  .fairness-table td, .fairness-table th{white-space:nowrap;}
+  .streak-warn{color:var(--cork-deep);font-weight:700;}
+  .match-card{
+    border:1.5px solid var(--line); border-radius:14px; padding:14px 16px;
+    transition:border-color .15s;
+  }
+  .match-card.completed{border-color:#C9E4D3; background:#FAFDFB;}
+  .match-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .match-num{font-family:'Outfit';font-weight:700;font-size:13px;color:var(--ink-soft);letter-spacing:.3px;}
+  .status-pill{font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;letter-spacing:.2px;}
+  .status-pill.pending{background:#FBF0E0;color:var(--cork-deep);}
+  .status-pill.completed{background:#DFF3E6;color:var(--win);}
+
+  .teams-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;}
+  .team-block{display:flex;flex-direction:column;gap:6px;}
+  .team-block.team2{align-items:flex-end;}
+  .player-chip{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600;}
+  .team2 .player-chip{flex-direction:row-reverse;}
+  .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;border:1.5px solid rgba(0,0,0,0.12);}
+  .vs-mark{font-family:'Outfit';font-weight:700;color:var(--ink-soft);font-size:13px;}
+
+  .score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-top:12px;}
+  .score-box{display:flex;justify-content:center;}
+  .score-box.left{justify-content:flex-start;}
+  .score-box.right{justify-content:flex-end;}
+  .score-input{
+    width:64px;text-align:center;font-family:'Outfit';font-size:20px;font-weight:700;
+    border:1.5px solid var(--line);border-radius:10px;padding:7px 4px;color:var(--ink);
+  }
+  .score-input:focus{outline:none;border-color:var(--court);}
+  .score-input.winner{border-color:var(--win);background:#F1FBF4;}
+  .dash{color:var(--ink-soft);font-family:'Outfit';font-weight:700;}
+
+  .match-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
+
+  .empty-state{text-align:center;padding:50px 20px;color:var(--ink-soft);}
+  .empty-state .big{font-size:36px;margin-bottom:10px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;font-size:11px;color:var(--ink-soft);font-weight:700;
+    padding:0 8px 10px;border-bottom:1.5px solid var(--line);
+  }
+  thead th.num{text-align:center;}
+  tbody td{padding:9px 8px;border-bottom:1px solid var(--line);}
+  tbody tr:last-child td{border-bottom:none;}
+  td.num{text-align:center;}
+  .rank-badge{
+    width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-family:'Outfit';font-weight:700;font-size:12px;background:var(--court-tint);color:var(--court-deep);
+  }
+  .rank-badge.gold{background:#FCEBC7;color:#8A5A00;}
+  .rank-badge.silver{background:#E7EAEC;color:#5C6469;}
+  .rank-badge.bronze{background:#F3DCC7;color:#8A4E1E;}
+  .player-name-cell{display:flex;align-items:center;gap:8px;font-weight:600;}
+  .pd-pos{color:var(--win);font-weight:700;}
+  .pd-neg{color:var(--loss);font-weight:700;}
+  .pd-zero{color:var(--ink-soft);font-weight:700;}
+  .standings-scroll{max-height:640px;overflow-y:auto;}
+
+  .toast{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:var(--court-deep);color:#fff;padding:12px 20px;border-radius:12px;
+    font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.25);
+    z-index:999; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px);}
+
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(18,53,36,0.45);display:flex;align-items:center;justify-content:center;
+    z-index:1000; padding:20px;
+  }
+  .modal-card{background:#fff;border-radius:16px;padding:26px;max-width:400px;width:100%;box-shadow:var(--shadow);}
+  .modal-card h3{margin:0 0 10px;font-size:17px;}
+  .modal-card p{margin:0 0 20px;color:var(--ink-soft);font-size:14px;line-height:1.5;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;}
+
+  @media (max-width:520px){
+    .mode-grid{grid-template-columns:1fr;}
+    .teams-row{grid-template-columns:1fr;gap:8px;}
+    .team-block.team2{align-items:flex-start;}
+    .team2 .player-chip{flex-direction:row;}
+    .vs-mark{text-align:left;}
+    .score-row{grid-template-columns:1fr;gap:8px;}
+    .score-box.right{justify-content:flex-start;}
+    .topbar-actions{width:100%;}
+    .score-input{width:78px;font-size:22px;padding:11px 4px;}
+    .score-box.left, .score-box.right{justify-content:stretch;}
+    .score-box.left .score-input, .score-box.right .score-input{width:100%;}
+    .phase-header{padding:9px 12px;}
+    .phase-title{font-size:13px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     CONSTANTS
+  ============================================================ */
+  var PALETTE = [
+    {name:'Crimson', hex:'#D6483F'},
+    {name:'Ocean', hex:'#2E7BB0'},
+    {name:'Meadow', hex:'#3E9553'},
+    {name:'Amber', hex:'#D9932F'},
+    {name:'Violet', hex:'#8358B5'},
+    {name:'Rose', hex:'#D75E9A'},
+    {name:'Teal', hex:'#2C9C93'},
+    {name:'Slate', hex:'#5B6B85'},
+    {name:'Lime', hex:'#8CA83A'},
+    {name:'Coral', hex:'#E07850'}
+  ];
+
+  var STORAGE_KEY = 'shuttle-draw-state-v1';
+
+  /* ============================================================
+     STATE
+  ============================================================ */
+  var state = {
+    screen: 'setup-mode',   // setup-mode -> setup-count -> setup-players -> dashboard
+    mode: null,             // '1v1' | '2v2'
+    playerCount: null,
+    players: [],            // [{id, name, color}]
+    matches: [],            // [{id, matchNumber, phase, team1:[ids], team2:[ids], score1, score2, status}]
+    filter: 'all',          // all | pending | completed
+    hasGenerated: false,
+    mobileStandingsOpen: false
+  };
+
+  var pendingAction = null; // for confirm modal
+
+  /* ============================================================
+     PERSISTENCE
+  ============================================================ */
+  var saveTimer = null;
+  function scheduleSave(){
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(persistState, 250);
+  }
+  function persistState(){
+    if (!window.storage) return;
+    window.storage.set(STORAGE_KEY, JSON.stringify(state), false).catch(function(){});
+  }
+  function loadState(cb){
+    if (!window.storage){ cb(false); return; }
+    window.storage.get(STORAGE_KEY, false).then(function(res){
+      if (res && res.value){
+        try{
+          var loaded = JSON.parse(res.value);
+          if (loaded && loaded.screen){
+            state = loaded;
+            cb(true);
+            return;
+          }
+        }catch(e){}
+      }
+      cb(false);
+    }).catch(function(){ cb(false); });
+  }
+
+  /* ============================================================
+     COMBINATORICS
+  ============================================================ */
+  function combinations(arr, k){
+    var results = [];
+    function helper(start, combo){
+      if (combo.length === k){ results.push(combo.slice()); return; }
+      for (var i = start; i < arr.length; i++){
+        combo.push(arr[i]);
+        helper(i+1, combo);
+        combo.pop();
+      }
+    }
+    helper(0, []);
+    return results;
+  }
+
+  function nChooseK(n, k){
+    if (k > n || k < 0) return 0;
+    var res = 1;
+    for (var i = 0; i < k; i++) res = res * (n - i) / (i + 1);
+    return Math.round(res);
+  }
+
+  function expectedMatchCount(mode, n){
+    if (!n) return 0;
+    if (mode === '1v1') return nChooseK(n, 2);
+    return nChooseK(n, 4) * 3;
+  }
+
+  function generateRawMatches(mode, playerIds){
+    var raw = [];
+    if (mode === '1v1'){
+      combinations(playerIds, 2).forEach(function(pair){
+        raw.push({team1:[pair[0]], team2:[pair[1]]});
+      });
+    } else {
+      combinations(playerIds, 4).forEach(function(q){
+        var p0=q[0], p1=q[1], p2=q[2], p3=q[3];
+        raw.push({team1:[p0,p1], team2:[p2,p3]});
+        raw.push({team1:[p0,p2], team2:[p1,p3]});
+        raw.push({team1:[p0,p3], team2:[p1,p2]});
+      });
+    }
+    return raw;
+  }
+
+  function shuffleArr(arr){
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i+1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  function gcd(a, b){ return b === 0 ? a : gcd(b, a % b); }
+
+  function pairKey(a, b){ return [a,b].sort().join(','); }
+
+  // Dynamic scheduling math used by the setup summary, before any players are named.
+  // playersPerMatch: 2 for singles, 4 for doubles.
+  function computeScheduleStats(mode, n){
+    if (!n) return {totalMatches:0, matchesPerPlayer:0, totalPhases:0, phaseSize:0, appearancesPerPhase:0, evenParticipation:true};
+    var playersPerMatch = mode === '1v1' ? 2 : 4;
+    var totalMatches = expectedMatchCount(mode, n);
+    var totalAppearances = totalMatches * playersPerMatch;
+    var matchesPerPlayer = totalAppearances / n; // always an exact integer: the raw combination
+                                                  // generator is symmetric across all players
+    var phaseSize, totalPhases, appearancesPerPhase;
+
+    if (mode === '1v1'){
+      // Singles is scheduled with a standard round-robin "circle method", which
+      // guarantees every phase (round) gives each available player exactly one
+      // match. Even counts: n-1 rounds of n/2 matches. Odd counts: n rounds of
+      // (n-1)/2 matches, with exactly one different player resting each round.
+      if (n % 2 === 0){
+        phaseSize = n / 2;
+        totalPhases = n - 1;
+      } else {
+        phaseSize = (n - 1) / 2;
+        totalPhases = n;
+      }
+      appearancesPerPhase = 1;
+    } else {
+      var g = gcd(n, playersPerMatch);
+      phaseSize = n / g;                       // matches needed for one "phase" to give every
+                                                // player an equal number of appearances
+      appearancesPerPhase = (phaseSize * playersPerMatch) / n;
+      totalPhases = phaseSize > 0 ? Math.round(totalMatches / phaseSize) : 0;
+    }
+
+    return {
+      totalMatches: totalMatches,
+      matchesPerPlayer: matchesPerPlayer,
+      totalPhases: totalPhases,
+      phaseSize: phaseSize,
+      appearancesPerPhase: appearancesPerPhase,
+      evenParticipation: Number.isInteger(matchesPerPlayer)
+    };
+  }
+
+  /*
+    Phase-based fairness scheduler.
+
+    A "phase" is a run of consecutive matches sized so that, mathematically, every
+    player gets the same number of appearances within that phase (phaseSize = n /
+    gcd(n, playersPerMatch)). Within a phase, matches are chosen greedily using this
+    priority order (highest priority first):
+      1. players who still need appearances to reach this phase's target
+      2. lowest total matches played so far (overall balance)
+      3. lowest current consecutive-match streak (avoid back-to-back overload)
+      4. least-repeated teammate pairing (2v2 only)
+      5. least-repeated opponent pairing
+      6. random choice among ties
+    Randomness is applied only to break ties between otherwise-equal candidates, and
+    to shuffle the pool before scheduling begins -- so the result is different every
+    time, but never at the expense of the fairness ordering above.
+  */
+  // Standard round-robin "circle method": guarantees every round (phase) gives
+  // every available player exactly one match, which greedy selection cannot
+  // always achieve for singles. One seat is fixed, the rest rotate around it
+  // each round; for an odd player count a "bye" seat rotates through too,
+  // giving each player exactly one rest round. Player order is shuffled first
+  // so the specific pairings are randomized, and match order within each round
+  // is shuffled too -- only the round (phase) structure itself is fixed.
+  function buildSinglesRoundRobin(playerIds){
+    var arr = shuffleArr(playerIds);
+    if (arr.length % 2 !== 0) arr.push(null); // bye seat
+    var total = arr.length;
+    var fixed = arr[0];
+    var rotating = arr.slice(1);
+    var rounds = [];
+
+    for (var r = 0; r < total - 1; r++){
+      var ring = [fixed].concat(rotating);
+      var pairs = [];
+      for (var i = 0; i < total / 2; i++){
+        var a = ring[i], b = ring[total - 1 - i];
+        if (a !== null && b !== null) pairs.push({team1:[a], team2:[b]});
+      }
+      rounds.push(shuffleArr(pairs));
+      rotating.unshift(rotating.pop());
+    }
+
+    rounds = shuffleArr(rounds); // phase order itself can be randomized freely --
+                                  // every round already gives full/near-full coverage
+    var num = 1;
+    var finalMatches = [];
+    rounds.forEach(function(pairs, idx){
+      pairs.forEach(function(m){
+        if (Math.random() < 0.5){ var t = m.team1; m.team1 = m.team2; m.team2 = t; }
+        finalMatches.push({team1:m.team1, team2:m.team2, matchNumber:num++, phase:idx + 1});
+      });
+    });
+    return {matches: finalMatches, phaseCount: rounds.length};
+  }
+
+  function buildPhasedSchedule(mode, playerIds){
+    if (mode === '1v1') return buildSinglesRoundRobin(playerIds);
+
+    var n = playerIds.length;
+    var playersPerMatch = 4;
+    var raw = generateRawMatches(mode, playerIds);
+    var pool = shuffleArr(raw);
+
+    var g = gcd(n, playersPerMatch);
+    var phaseSize = n / g;
+    var appearancesPerPhase = (phaseSize * playersPerMatch) / n;
+
+    var playCount = {}, currentStreak = {};
+    var teammateCount = {}, opponentCount = {};
+    playerIds.forEach(function(id){ playCount[id] = 0; currentStreak[id] = 0; });
+
+    var phases = [];
+
+    function scoreCmp(a, b){
+      for (var i = 0; i < a.length; i++){ if (a[i] !== b[i]) return a[i] - b[i]; }
+      return 0;
+    }
+
+    while (pool.length > 0){
+      var phaseMatches = [];
+      var phaseAppearances = {};
+      playerIds.forEach(function(id){ phaseAppearances[id] = 0; });
+      var matchesThisPhase = Math.min(phaseSize, pool.length);
+
+      for (var step = 0; step < matchesThisPhase; step++){
+        var bestScore = null, ties = [];
+        for (var i = 0; i < pool.length; i++){
+          var m = pool[i];
+          var involved = m.team1.concat(m.team2);
+          var needScore = 0;
+          for (var a = 0; a < involved.length; a++){
+            needScore += Math.max(0, appearancesPerPhase - phaseAppearances[involved[a]]);
+          }
+          var sumPlayCount = 0, streakPenalty = 0;
+          for (var b = 0; b < involved.length; b++){
+            sumPlayCount += playCount[involved[b]];
+            streakPenalty += currentStreak[involved[b]];
+          }
+          var teammatePenalty = 0;
+          if (mode === '2v2'){
+            teammatePenalty += (teammateCount[pairKey(m.team1[0], m.team1[1])] || 0);
+            teammatePenalty += (teammateCount[pairKey(m.team2[0], m.team2[1])] || 0);
+          }
+          var opponentPenalty = 0;
+          m.team1.forEach(function(pa){ m.team2.forEach(function(pb){ opponentPenalty += (opponentCount[pairKey(pa,pb)] || 0); }); });
+
+          var score = [-needScore, sumPlayCount, streakPenalty, teammatePenalty, opponentPenalty];
+          if (bestScore === null || scoreCmp(score, bestScore) < 0){ bestScore = score; ties = [i]; }
+          else if (scoreCmp(score, bestScore) === 0){ ties.push(i); }
+        }
+
+        var chosenIdx = ties[Math.floor(Math.random() * ties.length)];
+        var chosen = pool.splice(chosenIdx, 1)[0];
+        if (Math.random() < 0.5){ var t = chosen.team1; chosen.team1 = chosen.team2; chosen.team2 = t; }
+
+        var chosenInvolved = chosen.team1.concat(chosen.team2);
+        var involvedSet = {};
+        chosenInvolved.forEach(function(p){ involvedSet[p] = true; playCount[p]++; phaseAppearances[p]++; });
+        playerIds.forEach(function(p){ currentStreak[p] = involvedSet[p] ? currentStreak[p] + 1 : 0; });
+        if (mode === '2v2'){
+          teammateCount[pairKey(chosen.team1[0], chosen.team1[1])] = (teammateCount[pairKey(chosen.team1[0], chosen.team1[1])] || 0) + 1;
+          teammateCount[pairKey(chosen.team2[0], chosen.team2[1])] = (teammateCount[pairKey(chosen.team2[0], chosen.team2[1])] || 0) + 1;
+        }
+        chosen.team1.forEach(function(pa){ chosen.team2.forEach(function(pb){ opponentCount[pairKey(pa,pb)] = (opponentCount[pairKey(pa,pb)] || 0) + 1; }); });
+
+        phaseMatches.push(chosen);
+      }
+
+      phases.push(phaseMatches);
+    }
+
+    var num = 1;
+    var finalMatches = [];
+    phases.forEach(function(pm, phaseIdx){
+      pm.forEach(function(m){
+        finalMatches.push({team1:m.team1, team2:m.team2, matchNumber:num++, phase:phaseIdx + 1});
+      });
+    });
+
+    return {matches: finalMatches, phaseCount: phases.length, appearancesPerPhase: appearancesPerPhase};
+  }
+
+  function buildMatches(mode, players, preserveScores){
+    var ids = players.map(function(p){ return p.id; });
+    var result = buildPhasedSchedule(mode, ids);
+
+    var oldByKey = {};
+    if (preserveScores){
+      state.matches.forEach(function(m){ oldByKey[matchKey(m)] = m; });
+    }
+
+    return result.matches.map(function(m, idx){
+      var key = matchKey(m);
+      var old = oldByKey[key];
+      return {
+        id: 'm' + idx + '_' + Date.now(),
+        matchNumber: m.matchNumber,
+        phase: m.phase,
+        team1: m.team1,
+        team2: m.team2,
+        score1: old ? old.score1 : null,
+        score2: old ? old.score2 : null,
+        status: old && old.status === 'completed' ? 'completed' : 'pending'
+      };
+    });
+  }
+
+  function matchKey(m){
+    var t1 = m.team1.slice().sort().join(',');
+    var t2 = m.team2.slice().sort().join(',');
+    var sides = [t1, t2].sort();
+    return sides.join('|');
+  }
+
+  /* ============================================================
+     STANDINGS (always recomputed fresh from current match scores)
+  ============================================================ */
+  function computeStandings(){
+    var stats = {};
+    state.players.forEach(function(p){
+      stats[p.id] = {
+        id:p.id, name:p.name, color:p.color,
+        played:0, wins:0, losses:0, scored:0, conceded:0
+      };
+    });
+
+    var completed = state.matches.filter(function(m){ return m.status === 'completed' && m.score1 !== null && m.score2 !== null; });
+
+    completed.forEach(function(m){
+      var s1 = Number(m.score1), s2 = Number(m.score2);
+      var t1Win = s1 > s2;
+      var t2Win = s2 > s1;
+      m.team1.forEach(function(pid){
+        var st = stats[pid]; if (!st) return;
+        st.played++; st.scored += s1; st.conceded += s2;
+        if (t1Win) st.wins++; else if (t2Win) st.losses++;
+      });
+      m.team2.forEach(function(pid){
+        var st = stats[pid]; if (!st) return;
+        st.played++; st.scored += s2; st.conceded += s1;
+        if (t2Win) st.wins++; else if (t1Win) st.losses++;
+      });
+    });
+
+    var list = Object.keys(stats).map(function(k){
+      var s = stats[k];
+      s.diff = s.scored - s.conceded;
+      return s;
+    });
+
+    // head-to-head helper: for two players, how many completed matches did they
+    // oppose each other in, and who won more of those
+    function headToHeadWinner(aId, bId){
+      var aWins = 0, bWins = 0;
+      completed.forEach(function(m){
+        var aInT1 = m.team1.indexOf(aId) !== -1, aInT2 = m.team2.indexOf(aId) !== -1;
+        var bInT1 = m.team1.indexOf(bId) !== -1, bInT2 = m.team2.indexOf(bId) !== -1;
+        var opposed = (aInT1 && bInT2) || (aInT2 && bInT1);
+        if (!opposed) return;
+        var s1 = Number(m.score1), s2 = Number(m.score2);
+        if (aInT1){
+          if (s1 > s2) aWins++; else if (s2 > s1) bWins++;
+        } else {
+          if (s2 > s1) aWins++; else if (s1 > s2) bWins++;
+        }
+      });
+      if (aWins > bWins) return -1;
+      if (bWins > aWins) return 1;
+      return 0;
+    }
+
+    list.sort(function(a, b){
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.diff !== a.diff) return b.diff - a.diff;
+      if (b.scored !== a.scored) return b.scored - a.scored;
+      var h2h = headToHeadWinner(a.id, b.id);
+      if (h2h !== 0) return h2h;
+      return a.name.localeCompare(b.name);
+    });
+
+    return list;
+  }
+
+  /* ============================================================
+     PHASE + FAIRNESS HELPERS
+  ============================================================ */
+  function groupMatchesByPhase(matches){
+    var byPhase = {};
+    var order = [];
+    matches.forEach(function(m){
+      var ph = m.phase || 1;
+      if (!byPhase[ph]){ byPhase[ph] = {phase: ph, matches: []}; order.push(ph); }
+      byPhase[ph].matches.push(m);
+    });
+    order.sort(function(a, b){ return a - b; });
+    return order.map(function(ph){ return byPhase[ph]; });
+  }
+
+  function phaseParticipantCount(phaseMatches){
+    var seen = {};
+    phaseMatches.forEach(function(m){
+      m.team1.concat(m.team2).forEach(function(p){ seen[p] = true; });
+    });
+    return Object.keys(seen).length;
+  }
+
+  function currentPhaseInfo(){
+    var groups = groupMatchesByPhase(state.matches);
+    for (var i = 0; i < groups.length; i++){
+      var g = groups[i];
+      var completed = g.matches.filter(function(m){ return m.status === 'completed'; }).length;
+      if (completed < g.matches.length){
+        return {phase: g.phase, completed: completed, total: g.matches.length, totalPhases: groups.length};
+      }
+    }
+    if (groups.length){
+      var last = groups[groups.length - 1];
+      return {phase: last.phase, completed: last.matches.length, total: last.matches.length, totalPhases: groups.length};
+    }
+    return {phase: 0, completed: 0, total: 0, totalPhases: 0};
+  }
+
+  // Scans the schedule in fixed order (independent of scores) to surface how the
+  // draw itself is balanced: total appearances, longest back-to-back run, and
+  // (for doubles) how many distinct teammates each player was paired with.
+  function computeFairnessStats(){
+    var byPlayer = {};
+    state.players.forEach(function(p){
+      byPlayer[p.id] = {id:p.id, name:p.name, color:p.color, total:0, maxStreak:0, curStreak:0, teammateSet:{}};
+    });
+    var ordered = state.matches.slice().sort(function(a, b){ return a.matchNumber - b.matchNumber; });
+    ordered.forEach(function(m){
+      var involved = {};
+      m.team1.concat(m.team2).forEach(function(p){ involved[p] = true; });
+      state.players.forEach(function(p){
+        var rec = byPlayer[p.id];
+        if (involved[p.id]){
+          rec.total++;
+          rec.curStreak++;
+          if (rec.curStreak > rec.maxStreak) rec.maxStreak = rec.curStreak;
+        } else {
+          rec.curStreak = 0;
+        }
+      });
+      if (state.mode === '2v2'){
+        byPlayer[m.team1[0]].teammateSet[m.team1[1]] = true;
+        byPlayer[m.team1[1]].teammateSet[m.team1[0]] = true;
+        byPlayer[m.team2[0]].teammateSet[m.team2[1]] = true;
+        byPlayer[m.team2[1]].teammateSet[m.team2[0]] = true;
+      }
+    });
+    return state.players.map(function(p){
+      var rec = byPlayer[p.id];
+      return {
+        id: p.id, name: p.name, color: p.color,
+        total: rec.total, maxStreak: rec.maxStreak,
+        teammates: Object.keys(rec.teammateSet).length
+      };
+    });
+  }
+
+  /* ============================================================
+     RENDER HELPERS
+  ============================================================ */
+  var root = document.getElementById('root');
+  function el(tag, attrs, children){
+    var node = document.createElement(tag);
+    attrs = attrs || {};
+    Object.keys(attrs).forEach(function(k){
+      var v = attrs[k];
+      if (v === null || v === undefined || v === false) return; // skip falsy attrs (e.g. disabled:null must NOT set the attribute)
+      if (k === 'class') node.className = v;
+      else if (k === 'html') node.innerHTML = v;
+      else if (k.indexOf('on') === 0 && typeof v === 'function') node.addEventListener(k.slice(2), v);
+      else if (k === 'style') node.setAttribute('style', v);
+      else node.setAttribute(k, v === true ? '' : v);
+    });
+    (children || []).forEach(function(c){
+      if (c === null || c === undefined) return;
+      if (typeof c === 'string') node.appendChild(document.createTextNode(c));
+      else node.appendChild(c);
+    });
+    return node;
+  }
+
+  function logoSvg(){
+    return '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="9" cy="15" r="5.2" stroke="white" stroke-width="1.6"/>' +
+      '<path d="M12.7 11.3L20 4M20 4l-1 4.5M20 4l-4.5 1" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>';
+  }
+
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+  }
+
+  function render(){
+    root.innerHTML = '';
+    scheduleSave();
+    var isDashboard = state.screen === 'dashboard';
+    document.documentElement.classList.toggle('dashboard-mode', isDashboard);
+    document.body.classList.toggle('dashboard-mode', isDashboard);
+
+    if (state.screen === 'setup-mode') root.appendChild(renderModeScreen());
+    else if (state.screen === 'setup-count') root.appendChild(renderCountScreen());
+    else if (state.screen === 'setup-players') root.appendChild(renderPlayersScreen());
+    else root.appendChild(renderDashboard());
+
+    if (pendingAction) root.appendChild(renderConfirmModal());
+  }
+
+  /* ============================================================
+     SETUP: MODE
+  ============================================================ */
+  function renderModeScreen(){
+    var wrap = el('div', {class:'setup-wrap'});
+    var card = el('div', {class:'setup-card'});
+    card.appendChild(brandBlock());
+    card.appendChild(el('div', {class:'step-dots'}, [
+      el('i', {class:'active'}), el('i'), el('i')
+    ]));
+    card.appendChild(el('h2', {}, ['Choose your format']));
+    card.appendChild(el('p', {class:'setup-sub'}, ['Pick singles or doubles to begin building today\'s draw.']));
+
+    var grid = el('div', {class:'mode-grid'});
+    grid.appendChild(modeCard('1v1', '🏸', 'Singles', '1 vs 1 — every player faces every other player once.'));
+    grid.appendChild(modeCard('2v2', '👥', 'Doubles', '2 vs 2 — rotating partners and opponents each match.'));
+    card.appendChild(grid);
+
+    var actions = el('div', {class:'setup-actions'});
+    actions.appendChild(el('span', {}, []));
+    var next = el('button', {class:'btn btn-primary', disabled: state.mode ? null : 'disabled', onclick:function(){
+      if (!state.mode) return;
+      state.playerCount = state.mode === '1v1' ? 4 : 4;
+      state.screen = 'setup-count';
+      render();
+    }}, ['Continue →']);
+    if (!state.mode) next.setAttribute('disabled', 'disabled');
+    actions.appendChild(next);
+    card.appendChild(actions);
+
+    wrap.appendChild(card);
+    return wrap;
+  }
+
+  function modeCard(mode, icon, title, desc){
+    var selected = state.mode === mode;
+    var c = el('div', {class:'mode-card' + (selected ? ' selected' : ''), onclick:function(){
+      state.mode = mode;
+      render();
+    }});
+    c.appendChild(el('span', {class:'icon'}, [icon]));
+    c.appendChild(el('div', {class:'title'}, [title]));
+    c.appendChild(el('div', {class:'desc'}, [desc]));
+    return c;
+  }
+
+  function summaryStat(value, label){
+    var box = el('div', {class:'summary-stat'});
+    box.appendChild(el('div', {class:'num'}, [String(value)]));
+    box.appendChild(el('div', {class:'lbl'}, [label]));
+    return box;
+  }
+
+  function brandBlock(){
+    var b = el('div', {class:'brand'});
+    var mark = el('div', {class:'mark', html: logoSvg()});
+    b.appendChild(mark);
+    b.appendChild(el('div', {class:'brand-name'}, ['Shuttle', el('span',{},[' Draw'])]));
+    return b;
+  }
+
+  /* ============================================================
+     SETUP: PLAYER COUNT
+  ============================================================ */
+  function renderCountScreen(){
+    var min = state.mode === '1v1' ? 3 : 4;
+    var max = 10;
+    if (!state.playerCount || state.playerCount < min) state.playerCount = min;
+
+    var wrap = el('div', {class:'setup-wrap'});
+    var card = el('div', {class:'setup-card'});
+    card.appendChild(brandBlock());
+    card.appendChild(el('div', {class:'step-dots'}, [
+      el('i', {class:'done'}), el('i', {class:'active'}), el('i')
+    ]));
+    card.appendChild(el('h2', {}, ['How many players?']));
+    card.appendChild(el('p', {class:'setup-sub'}, [
+      state.mode === '1v1' ? 'Singles needs at least 3 players (max 10).' : 'Doubles needs at least 4 players (max 10).'
+    ]));
+
+    var row = el('div', {class:'count-row'});
+    var minus = el('button', {class:'count-btn', onclick:function(){
+      if (state.playerCount > min){ state.playerCount--; render(); }
+    }}, ['−']);
+    if (state.playerCount <= min) minus.setAttribute('disabled','disabled');
+    row.appendChild(minus);
+    row.appendChild(el('div', {class:'count-display'}, [String(state.playerCount)]));
+    var plus = el('button', {class:'count-btn', onclick:function(){
+      if (state.playerCount < max){ state.playerCount++; render(); }
+    }}, ['+']);
+    if (state.playerCount >= max) plus.setAttribute('disabled','disabled');
+    row.appendChild(plus);
+    card.appendChild(row);
+    card.appendChild(el('div', {class:'count-hint'}, ['players (' + min + '–' + max + ' allowed)']));
+
+    var stats = computeScheduleStats(state.mode, state.playerCount);
+    var preview = el('div', {class:'combo-preview'});
+    preview.appendChild(el('div', {class:'summary-title'}, ['Tournament Summary']));
+
+    var grid = el('div', {class:'summary-grid'});
+    grid.appendChild(summaryStat(stats.totalMatches, 'Unique Matches'));
+    grid.appendChild(summaryStat(stats.matchesPerPlayer, 'Matches / Player'));
+    grid.appendChild(summaryStat(stats.totalPhases, 'Total Phases'));
+    preview.appendChild(grid);
+
+    preview.appendChild(el('div', {class:'summary-note'}, [
+      stats.evenParticipation
+        ? 'Every player takes part in exactly ' + stats.matchesPerPlayer + ' of the ' + stats.totalMatches + ' generated matches — the schedule is split into ' + stats.totalPhases + ' phases of ' + stats.phaseSize + ' match' + (stats.phaseSize === 1 ? '' : 'es') + ' each, and each phase gives every player ' + stats.appearancesPerPhase + ' appearance' + (stats.appearancesPerPhase === 1 ? '' : 's') + ' before the next phase begins.'
+        : 'With this player count, an exactly equal split isn\u2019t mathematically possible — the app will show each player\u2019s actual match count once the schedule is generated, and keep the difference as small as possible.'
+    ]));
+    card.appendChild(preview);
+
+    var actions = el('div', {class:'setup-actions'});
+    actions.appendChild(el('button', {class:'btn btn-ghost', onclick:function(){
+      state.screen = 'setup-mode'; render();
+    }}, ['← Back']));
+    actions.appendChild(el('button', {class:'btn btn-primary', onclick:function(){
+      var existing = state.players || [];
+      var next = [];
+      for (var i = 0; i < state.playerCount; i++){
+        if (existing[i]) next.push(existing[i]);
+        else next.push({id:'p'+i+'_'+Date.now()+Math.floor(Math.random()*1000), name:'', color:null});
+      }
+      state.players = next;
+      state.screen = 'setup-players';
+      render();
+    }}, ['Continue →']));
+    card.appendChild(actions);
+
+    wrap.appendChild(card);
+    return wrap;
+  }
+
+  /* ============================================================
+     SETUP: PLAYER NAMES + COLORS
+  ============================================================ */
+  function renderPlayersScreen(){
+    var wrap = el('div', {class:'setup-wrap'});
+    var card = el('div', {class:'setup-card'});
+    card.appendChild(brandBlock());
+    card.appendChild(el('div', {class:'step-dots'}, [
+      el('i', {class:'done'}), el('i', {class:'done'}), el('i', {class:'active'})
+    ]));
+    card.appendChild(el('h2', {}, ['Name your players']));
+    card.appendChild(el('p', {class:'setup-sub'}, ['Give each player a name and a color — used everywhere throughout the tournament.']));
+
+    var usedColors = {};
+    state.players.forEach(function(p){ if (p.color) usedColors[p.color] = p.id; });
+
+    var list = el('div', {class:'player-list'});
+    state.players.forEach(function(p, idx){
+      var row = el('div', {class:'player-row'});
+      row.appendChild(el('div', {class:'player-num'}, [String(idx+1)]));
+      var input = el('input', {type:'text', placeholder:'Player ' + (idx+1) + ' name', value:p.name});
+      input.value = p.name;
+      input.addEventListener('input', function(e){
+        p.name = e.target.value;
+        scheduleSave();
+      });
+      row.appendChild(input);
+
+      var picker = el('div', {class:'color-picker'});
+      PALETTE.forEach(function(c){
+        var takenBy = usedColors[c.hex];
+        var isTakenByOther = takenBy && takenBy !== p.id;
+        var isChosen = p.color === c.hex;
+        var sw = el('div', {
+          class:'swatch' + (isTakenByOther ? ' taken-by-other' : '') + (isChosen ? ' chosen' : ''),
+          style:'background:' + c.hex + ';',
+          title:c.name,
+          onclick:function(){
+            if (isTakenByOther) return;
+            p.color = isChosen ? null : c.hex;
+            render();
+          }
+        });
+        picker.appendChild(sw);
+      });
+      row.appendChild(picker);
+      list.appendChild(row);
+    });
+    card.appendChild(list);
+
+    var allNamed = state.players.every(function(p){ return p.name && p.name.trim().length > 0; });
+    var allColored = state.players.every(function(p){ return !!p.color; });
+    var errMsg = null;
+    if (!allNamed) errMsg = 'Give every player a name to continue.';
+    else if (!allColored) errMsg = 'Give every player a unique color to continue.';
+
+    if (errMsg) card.appendChild(el('div', {class:'error-text'}, [errMsg]));
+
+    var actions = el('div', {class:'setup-actions'});
+    actions.appendChild(el('button', {class:'btn btn-ghost', onclick:function(){
+      state.screen = 'setup-count'; render();
+    }}, ['← Back']));
+    var goBtn = el('button', {class:'btn btn-primary', onclick:function(){
+      state.players.forEach(function(p){ p.name = p.name.trim(); });
+      state.matches = buildMatches(state.mode, state.players, false);
+      state.hasGenerated = true;
+      state.screen = 'dashboard';
+      render();
+      showToast('Generated ' + state.matches.length + ' matches');
+    }}, ['Generate Matches 🏸']);
+    if (errMsg) goBtn.setAttribute('disabled', 'disabled');
+    actions.appendChild(goBtn);
+    card.appendChild(actions);
+
+    wrap.appendChild(card);
+    return wrap;
+  }
+
+  /* ============================================================
+     DASHBOARD
+  ============================================================ */
+  function renderDashboard(){
+    var app = el('div', {class:'app'});
+    app.appendChild(renderTopbar());
+
+    var layout = el('div', {class:'layout'});
+    layout.appendChild(renderMatchesPanel());
+    layout.appendChild(renderStandingsPanel());
+    app.appendChild(layout);
+
+    if (state.mobileStandingsOpen){
+      var backdrop = el('div', {class:'standings-sheet-backdrop show', onclick:function(){
+        state.mobileStandingsOpen = false; render();
+      }});
+      app.appendChild(backdrop);
+    }
+    return app;
+  }
+
+  function renderTopbar(){
+    var bar = el('div', {class:'topbar'});
+
+    var left = el('div', {class:'topbar-left'});
+    left.appendChild(el('div', {class:'mark', html: logoSvg()}));
+    var titleBlock = el('div', {});
+    titleBlock.appendChild(el('div', {class:'topbar-title'}, ['Shuttle Draw']));
+    titleBlock.appendChild(el('div', {class:'topbar-sub'}, [
+      (state.mode === '1v1' ? 'Singles' : 'Doubles') + ' · ' + state.players.length + ' players'
+    ]));
+    left.appendChild(titleBlock);
+    bar.appendChild(left);
+
+    var completedCount = state.matches.filter(function(m){ return m.status === 'completed'; }).length;
+    var total = state.matches.length;
+    var pct = total ? Math.round((completedCount/total)*100) : 0;
+    var pw = el('div', {class:'progress-wrap'});
+    pw.appendChild(el('div', {class:'progress-label'}, [
+      el('span', {}, ['Tournament progress']),
+      el('span', {}, [completedCount + ' / ' + total + ' matches'])
+    ]));
+    var track = el('div', {class:'progress-track'});
+    track.appendChild(el('div', {class:'progress-fill', style:'width:' + pct + '%;'}));
+    pw.appendChild(track);
+
+    var phaseInfo = currentPhaseInfo();
+    if (phaseInfo.total > 0){
+      var phaseDone = phaseInfo.completed >= phaseInfo.total;
+      pw.appendChild(el('div', {class:'phase-progress-line'}, [
+        'Phase ' + phaseInfo.phase + ' of ' + phaseInfo.totalPhases + ': ' +
+        phaseInfo.completed + ' / ' + phaseInfo.total + ' matches' + (phaseDone ? ' — complete' : '')
+      ]));
+    }
+    bar.appendChild(pw);
+
+    var actions = el('div', {class:'topbar-actions'});
+    actions.appendChild(el('button', {class:'btn btn-outline btn-sm', onclick:function(){
+      state.matches = buildMatches(state.mode, state.players, true);
+      render();
+      showToast('Match order reshuffled — fairness preserved');
+    }}, ['🔀 Randomize Order']));
+
+    actions.appendChild(el('button', {class:'btn btn-outline btn-sm standings-toggle-btn', onclick:function(){
+      state.mobileStandingsOpen = true;
+      render();
+    }}, ['📊 Standings']));
+
+    actions.appendChild(el('button', {class:'btn btn-outline btn-sm', onclick:function(){
+      var hasScores = state.matches.some(function(m){ return m.status === 'completed'; });
+      confirmAction({
+        title: 'Regenerate schedule?',
+        body: hasScores ? 'This creates a fresh randomized draw. Existing scores for identical matchups will be kept where possible, but the schedule order will change.' : 'This creates a fresh randomized draw of all matches.',
+        confirmLabel: 'Regenerate',
+        onConfirm: function(){
+          state.matches = buildMatches(state.mode, state.players, true);
+          render();
+          showToast('Schedule regenerated');
+        }
+      });
+    }}, ['♻️ Regenerate Schedule']));
+
+    actions.appendChild(el('button', {class:'btn btn-outline btn-sm', onclick:function(){
+      confirmAction({
+        title: 'Clear all scores?',
+        body: 'All match scores will be removed and every match will be marked pending. Players and the schedule stay the same.',
+        confirmLabel: 'Clear scores',
+        onConfirm: function(){
+          state.matches.forEach(function(m){ m.score1 = null; m.score2 = null; m.status = 'pending'; });
+          render();
+          showToast('All scores cleared');
+        }
+      });
+    }}, ['🧹 Clear Scores']));
+
+    actions.appendChild(el('button', {class:'btn btn-danger-outline btn-sm', onclick:function(){
+      confirmAction({
+        title: 'Reset tournament?',
+        body: 'This clears players, matches, and scores completely and takes you back to setup. This cannot be undone.',
+        confirmLabel: 'Reset everything',
+        onConfirm: function(){
+          state = {screen:'setup-mode', mode:null, playerCount:null, players:[], matches:[], filter:'all', hasGenerated:false, mobileStandingsOpen:false};
+          render();
+        }
+      });
+    }}, ['⟲ Reset Tournament']));
+
+    bar.appendChild(actions);
+    return bar;
+  }
+
+  function playerById(id){
+    for (var i = 0; i < state.players.length; i++) if (state.players[i].id === id) return state.players[i];
+    return {name:'?', color:'#999'};
+  }
+
+  function renderMatchesPanel(){
+    var panel = el('div', {class:'panel'});
+    var head = el('div', {class:'panel-head'});
+    head.appendChild(el('h2', {}, ['Match Schedule']));
+
+    var filters = el('div', {class:'filters'});
+    ['all','pending','completed'].forEach(function(f){
+      var label = f === 'all' ? 'All' : (f === 'pending' ? 'Pending' : 'Completed');
+      var btn = el('button', {class: state.filter === f ? 'active' : '', onclick:function(){
+        state.filter = f; render();
+      }}, [label]);
+      filters.appendChild(btn);
+    });
+    head.appendChild(filters);
+    panel.appendChild(head);
+
+    var visibleIds = {};
+    state.matches.forEach(function(m){
+      if (state.filter === 'all' || m.status === state.filter) visibleIds[m.id] = true;
+    });
+
+    var scroll = el('div', {class:'matches-scroll'});
+    var groups = groupMatchesByPhase(state.matches);
+    var anyVisible = false;
+
+    groups.forEach(function(g){
+      var visibleInPhase = g.matches.filter(function(m){ return visibleIds[m.id]; });
+      if (visibleInPhase.length === 0) return;
+      anyVisible = true;
+
+      var participants = phaseParticipantCount(g.matches);
+      var completedInPhase = g.matches.filter(function(m){ return m.status === 'completed'; }).length;
+      var isComplete = completedInPhase === g.matches.length;
+
+      var header = el('div', {class:'phase-header'});
+      header.appendChild(el('div', {class:'phase-title'}, ['PHASE ' + g.phase]));
+      header.appendChild(el('div', {class:'phase-status' + (isComplete ? ' complete' : '')}, [
+        isComplete ? 'Completed · ' + participants + '/' + state.players.length + ' players participated'
+                   : participants + '/' + state.players.length + ' players participated · ' + completedInPhase + '/' + g.matches.length + ' played'
+      ]));
+      scroll.appendChild(header);
+
+      var grid = el('div', {class:'match-grid'});
+      visibleInPhase.forEach(function(m){ grid.appendChild(renderMatchCard(m)); });
+      scroll.appendChild(grid);
+    });
+
+    if (!anyVisible){
+      scroll.appendChild(el('div', {class:'empty-state'}, [
+        el('div', {class:'big'}, ['🏸']),
+        el('div', {}, ['No matches to show here.'])
+      ]));
+    }
+
+    panel.appendChild(scroll);
+    return panel;
+  }
+
+  function teamChip(playerIds, sideClass){
+    var block = el('div', {class:'team-block ' + sideClass});
+    playerIds.forEach(function(pid){
+      var p = playerById(pid);
+      var chip = el('div', {class:'player-chip'});
+      chip.appendChild(el('span', {class:'dot', style:'background:' + p.color + ';'}));
+      chip.appendChild(el('span', {}, [p.name]));
+      block.appendChild(chip);
+    });
+    return block;
+  }
+
+  function renderMatchCard(m){
+    var card = el('div', {class:'match-card' + (m.status === 'completed' ? ' completed' : '')});
+
+    var head = el('div', {class:'match-card-head'});
+    head.appendChild(el('div', {class:'match-num'}, ['MATCH ' + m.matchNumber]));
+    head.appendChild(el('div', {class:'status-pill ' + m.status}, [m.status === 'completed' ? 'Completed' : 'Pending']));
+    card.appendChild(head);
+
+    var teamsRow = el('div', {class:'teams-row'});
+    teamsRow.appendChild(teamChip(m.team1, 'team1'));
+    teamsRow.appendChild(el('div', {class:'vs-mark'}, ['VS']));
+    teamsRow.appendChild(teamChip(m.team2, 'team2'));
+    card.appendChild(teamsRow);
+
+    var s1Val = m.score1 === null || m.score1 === undefined ? '' : m.score1;
+    var s2Val = m.score2 === null || m.score2 === undefined ? '' : m.score2;
+    var t1Winner = m.status === 'completed' && Number(m.score1) > Number(m.score2);
+    var t2Winner = m.status === 'completed' && Number(m.score2) > Number(m.score1);
+
+    var scoreRow = el('div', {class:'score-row'});
+    var leftBox = el('div', {class:'score-box left'});
+    var input1 = el('input', {type:'number', min:'0', class:'score-input' + (t1Winner ? ' winner' : ''), placeholder:'—'});
+    input1.value = s1Val;
+    leftBox.appendChild(input1);
+    scoreRow.appendChild(leftBox);
+    scoreRow.appendChild(el('div', {class:'dash'}, ['–']));
+    var rightBox = el('div', {class:'score-box right'});
+    var input2 = el('input', {type:'number', min:'0', class:'score-input' + (t2Winner ? ' winner' : ''), placeholder:'—'});
+    input2.value = s2Val;
+    rightBox.appendChild(input2);
+    scoreRow.appendChild(rightBox);
+    card.appendChild(scoreRow);
+
+    var actions = el('div', {class:'match-actions'});
+    if (m.status === 'completed'){
+      actions.appendChild(el('button', {class:'btn btn-outline btn-sm', onclick:function(){
+        m.score1 = null; m.score2 = null; m.status = 'pending';
+        render();
+      }}, ['Edit Score']));
+    } else {
+      actions.appendChild(el('button', {class:'btn btn-primary btn-sm', onclick:function(){
+        var v1 = input1.value.trim(), v2 = input2.value.trim();
+        if (v1 === '' || v2 === '' || isNaN(Number(v1)) || isNaN(Number(v2))){
+          showToast('Enter both scores to save');
+          return;
+        }
+        if (Number(v1) === Number(v2)){
+          showToast("Badminton matches can't end in a tie");
+          return;
+        }
+        m.score1 = Number(v1); m.score2 = Number(v2); m.status = 'completed';
+        render();
+        showToast('Match ' + m.matchNumber + ' saved');
+      }}, ['Save Score']));
+    }
+    card.appendChild(actions);
+
+    return card;
+  }
+
+  function renderStandingsPanel(){
+    var panel = el('div', {class:'panel standings-panel' + (state.mobileStandingsOpen ? ' sheet-open' : '')});
+
+    var closeRow = el('div', {class:'sheet-close-row'});
+    closeRow.appendChild(el('button', {class:'btn btn-ghost btn-sm', onclick:function(){
+      state.mobileStandingsOpen = false; render();
+    }}, ['✕ Close']));
+    panel.appendChild(closeRow);
+
+    var head = el('div', {class:'panel-head'});
+    head.appendChild(el('h2', {}, ['Live Standings']));
+    panel.appendChild(head);
+
+    var standings = computeStandings();
+    var scrollWrap = el('div', {class:'standings-scroll'});
+    var table = el('table', {});
+    var thead = el('thead', {});
+    thead.appendChild(el('tr', {}, [
+      el('th', {class:'num'}, ['#']),
+      el('th', {}, ['Player']),
+      el('th', {class:'num'}, ['MP']),
+      el('th', {class:'num'}, ['W']),
+      el('th', {class:'num'}, ['L']),
+      el('th', {class:'num'}, ['PS']),
+      el('th', {class:'num'}, ['PC']),
+      el('th', {class:'num'}, ['+/-'])
+    ]));
+    table.appendChild(thead);
+
+    var tbody = el('tbody', {});
+    standings.forEach(function(s, idx){
+      var rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
+      var diffClass = s.diff > 0 ? 'pd-pos' : s.diff < 0 ? 'pd-neg' : 'pd-zero';
+      var nameCell = el('td', {}, [
+        el('div', {class:'player-name-cell'}, [
+          el('span', {class:'dot', style:'background:' + s.color + ';'}),
+          el('span', {}, [s.name])
+        ])
+      ]);
+      tbody.appendChild(el('tr', {}, [
+        el('td', {class:'num'}, [el('span', {class:'rank-badge' + (rankClass ? ' ' + rankClass : '')}, [String(idx+1)])]),
+        nameCell,
+        el('td', {class:'num'}, [String(s.played)]),
+        el('td', {class:'num'}, [String(s.wins)]),
+        el('td', {class:'num'}, [String(s.losses)]),
+        el('td', {class:'num'}, [String(s.scored)]),
+        el('td', {class:'num'}, [String(s.conceded)]),
+        el('td', {class:'num ' + diffClass}, [(s.diff > 0 ? '+' : '') + s.diff])
+      ]));
+    });
+    table.appendChild(tbody);
+    scrollWrap.appendChild(table);
+    scrollWrap.appendChild(renderFairnessPanel());
+    panel.appendChild(scrollWrap);
+    return panel;
+  }
+
+  function renderFairnessPanel(){
+    var wrap = el('div', {class:'fairness-panel'});
+    wrap.appendChild(el('h2', {style:'font-size:15px;margin:0 0 10px;font-weight:700;'}, ['Scheduling Fairness']));
+
+    var stats = computeFairnessStats();
+    var allEqual = stats.every(function(s){ return s.total === stats[0].total; });
+    if (allEqual && stats.length){
+      wrap.appendChild(el('div', {class:'fairness-badge'}, ['✓ Every player plays ' + stats[0].total + ' matches']));
+    }
+
+    var table = el('table', {class:'fairness-table'});
+    var thead = el('thead', {});
+    var headerCells = [
+      el('th', {}, ['Player']),
+      el('th', {class:'num'}, ['Matches']),
+      el('th', {class:'num'}, ['Max Streak'])
+    ];
+    if (state.mode === '2v2') headerCells.push(el('th', {class:'num'}, ['Teammates']));
+    thead.appendChild(el('tr', {}, headerCells));
+    table.appendChild(thead);
+
+    var tbody = el('tbody', {});
+    stats.forEach(function(s){
+      var cells = [
+        el('td', {}, [
+          el('div', {class:'player-name-cell'}, [
+            el('span', {class:'dot', style:'background:' + s.color + ';'}),
+            el('span', {}, [s.name])
+          ])
+        ]),
+        el('td', {class:'num'}, [String(s.total)]),
+        el('td', {class:'num' + (s.maxStreak >= 3 ? ' streak-warn' : '')}, [String(s.maxStreak)])
+      ];
+      if (state.mode === '2v2') cells.push(el('td', {class:'num'}, [String(s.teammates)]));
+      tbody.appendChild(el('tr', {}, cells));
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  /* ============================================================
+     CONFIRM MODAL
+  ============================================================ */
+  function confirmAction(opts){
+    pendingAction = opts;
+    render();
+  }
+
+  function renderConfirmModal(){
+    var opts = pendingAction;
+    var backdrop = el('div', {class:'modal-backdrop', onclick:function(e){
+      if (e.target === backdrop){ pendingAction = null; render(); }
+    }});
+    var card = el('div', {class:'modal-card'});
+    card.appendChild(el('h3', {}, [opts.title]));
+    card.appendChild(el('p', {}, [opts.body]));
+    var actions = el('div', {class:'modal-actions'});
+    actions.appendChild(el('button', {class:'btn btn-ghost', onclick:function(){
+      pendingAction = null; render();
+    }}, ['Cancel']));
+    actions.appendChild(el('button', {class:'btn btn-primary', onclick:function(){
+      var fn = opts.onConfirm;
+      pendingAction = null;
+      fn();
+    }}, [opts.confirmLabel]));
+    card.appendChild(actions);
+    backdrop.appendChild(card);
+    return backdrop;
+  }
+
+  /* ============================================================
+     INIT
+  ============================================================ */
+  loadState(function(){
+    render();
+  });
+
+})();
+</script>
+</body>
+</html>
