@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <title>Shuttle Draw — Badminton Tournament Tracker</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
@@ -390,6 +391,70 @@
     .phase-title{font-size:13px;}
     .menu-dropdown{position:fixed;left:12px;right:12px;top:auto;bottom:12px;max-height:70vh;}
   }
+  /* ============================================================
+     TOURNEY MODE — additional styles
+  ============================================================ */
+  .tourney-layout{grid-template-columns:1fr 320px;}
+  .bracket-panel{overflow:visible;}
+  .status-pill.waiting{background:#EDEEE8;color:var(--ink-soft);}
+  .status-pill.bye{background:var(--court-tint);color:var(--court-deep);}
+
+  .bracket-round-tabs{display:none;gap:6px;overflow-x:auto;margin-bottom:14px;padding-bottom:4px;}
+  .round-tab{
+    flex-shrink:0;border:1.5px solid var(--line);background:var(--paper-raised);color:var(--ink-soft);
+    padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
+  }
+  .round-tab.active{background:var(--court);color:#fff;border-color:var(--court);}
+
+  .bracket-visual{overflow-x:auto;padding-bottom:10px;}
+  .bracket-scroller{display:flex;gap:28px;min-width:max-content;}
+  .bracket-col{display:flex;flex-direction:column;min-width:230px;}
+  .bracket-col-title{font-family:'Outfit';font-weight:700;font-size:13px;letter-spacing:.3px;color:var(--court-deep);text-transform:uppercase;margin-bottom:12px;text-align:center;}
+  .bracket-col-matches{display:flex;flex-direction:column;justify-content:space-around;gap:18px;flex:1;}
+
+  .bracket-match{
+    background:var(--paper-raised);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;
+    box-shadow:var(--shadow);
+  }
+  .bracket-match.status-completed{border-color:#C9E4D3;}
+  .bracket-match.status-bye{background:var(--court-tint);border-style:dashed;}
+  .bracket-match-num{font-size:10.5px;font-weight:700;color:var(--ink-soft);letter-spacing:.3px;text-transform:uppercase;margin-bottom:8px;}
+  .bracket-competitor{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:14px;font-weight:600;}
+  .bracket-competitor-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bracket-competitor-name.tbd{color:var(--ink-soft);font-style:italic;font-weight:500;}
+  .bracket-competitor.winner{color:var(--win);}
+  .bracket-score{font-family:'Outfit';font-weight:700;}
+  .bye-line{font-size:12px;font-weight:700;color:var(--court-deep);letter-spacing:.3px;margin-top:4px;}
+  .bracket-waiting{font-size:12px;color:var(--ink-soft);font-style:italic;margin-top:6px;}
+  .bracket-score-entry{display:flex;align-items:center;gap:8px;margin-top:8px;}
+  .bracket-score-entry .score-input{width:100%;}
+
+  .bracket-editor-grid{display:flex;flex-direction:column;gap:10px;max-height:48vh;overflow-y:auto;margin-bottom:6px;}
+  .bracket-editor-pair{display:flex;flex-direction:column;gap:6px;padding:8px;border:1.5px dashed var(--line);border-radius:12px;}
+  .bracket-editor-slot{
+    display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:9px;border:1.5px solid var(--line);
+    background:var(--paper); cursor:pointer; font-size:14px; font-weight:600;
+  }
+  .bracket-editor-slot:hover{border-color:var(--court);}
+  .bracket-editor-slot.selected{border-color:var(--cork);background:var(--court-tint);}
+  .bracket-editor-slot.bye{color:var(--ink-soft);font-style:italic;background:transparent;}
+
+  .standings-card{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);}
+  .standings-card:last-child{border-bottom:none;}
+  .standings-rank{width:22px;text-align:center;font-family:'Outfit';font-weight:700;color:var(--ink-soft);flex-shrink:0;}
+  .standings-mid{flex:1;min-width:0;}
+  .standings-name{font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;}
+  .standings-finish{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .standings-stats{text-align:right;font-size:13px;font-weight:700;flex-shrink:0;}
+  .standings-sub{font-size:11.5px;color:var(--ink-soft);font-weight:500;margin-top:2px;}
+
+  @media (max-width: 900px){
+    .tourney-layout{grid-template-columns:1fr;}
+    .bracket-round-tabs{display:flex;}
+    .bracket-scroller{display:block;}
+    .bracket-col{display:none;min-width:0;width:100%;}
+    .bracket-col.mobile-visible{display:flex;}
+  }
 </style>
 </head>
 <body>
@@ -417,8 +482,44 @@
     {name:'Coral', hex:'#E07850'}
   ];
 
+  // Deterministic player-color assignment (Requirement 2): position N always
+  // gets color N, no manual picking. Base 10 hand-picked hues are kept exactly
+  // as before (so existing Draw tournaments look unchanged), then extended
+  // programmatically around the hue wheel to support up to 48 players/teams.
+  function buildFullPalette(){
+    var extended = PALETTE.slice();
+    var need = 48 - extended.length;
+    for (var i = 0; i < need; i++){
+      var hue = Math.round((i * 137.508) % 360); // golden-angle spacing = visually distinct
+      var sat = 55 + (i % 3) * 8;
+      var light = 42 + (i % 4) * 5;
+      extended.push({name:'Color ' + (extended.length + 1), hex: hslToHex(hue, sat, light)});
+    }
+    return extended;
+  }
+  function hslToHex(h, s, l){
+    s /= 100; l /= 100;
+    var c = (1 - Math.abs(2*l - 1)) * s;
+    var x = c * (1 - Math.abs((h/60) % 2 - 1));
+    var m = l - c/2;
+    var r=0,g=0,b=0;
+    if (h < 60){ r=c; g=x; b=0; } else if (h < 120){ r=x; g=c; b=0; }
+    else if (h < 180){ r=0; g=c; b=x; } else if (h < 240){ r=0; g=x; b=c; }
+    else if (h < 300){ r=x; g=0; b=c; } else { r=c; g=0; b=x; }
+    function toHex(v){ var n = Math.round((v+m)*255); return ('0'+n.toString(16)).slice(-2); }
+    return '#' + toHex(r) + toHex(g) + toHex(b);
+  }
+  function colorForIndex(idx){
+    if (!colorForIndex._p) colorForIndex._p = buildFullPalette();
+    return colorForIndex._p[idx % colorForIndex._p.length].hex;
+  }
+  // Reassigns colors to `list` (array of {id,color,...}) strictly by array position.
+  function reassignColorsByPosition(list){
+    (list || []).forEach(function(item, idx){ item.color = colorForIndex(idx); });
+  }
+
   var APP_ID = 'Shuttle Draw';
-  var FORMAT_VERSION = 2;
+  var FORMAT_VERSION = 3;
   var LS_INDEX_KEY = 'shuttleDraw.index';
   var LS_ACTIVE_KEY = 'shuttleDraw.activeId';
   function lsTournamentKey(id){ return 'shuttleDraw.tournament.' + id; }
@@ -428,7 +529,8 @@
   ============================================================ */
   function freshState(){
     return {
-      screen: 'setup-mode',   // setup-mode -> setup-count -> setup-players -> dashboard
+      screen: 'setup-type',   // setup-type -> setup-mode -> setup-count -> setup-players -> (tourney: setup-bracket-choice -> setup-bracket-editor ->) dashboard
+      type: null,             // 'draw' | 'tourney'
       id: null,               // stable tournament id, assigned once matches are generated
       name: null,
       createdAt: null,
@@ -436,10 +538,17 @@
       mode: null,             // '1v1' | '2v2'
       playerCount: null,
       players: [],            // [{id, name, color}]
-      matches: [],            // [{id, matchNumber, phase, team1:[ids], team2:[ids], score1, score2, status}]
+      matches: [],            // DRAW MODE ONLY: [{id, matchNumber, phase, team1:[ids], team2:[ids], score1, score2, status}]
       filter: 'all',          // all | pending | completed
       hasGenerated: false,
-      mobileStandingsOpen: false
+      mobileStandingsOpen: false,
+
+      // ---------------- TOURNEY MODE ----------------
+      teams: [],              // doubles only: [{id, playerIds:[a,b], color}] — fixed teams (knockout can't rotate partners)
+      bracket: null,          // {slotCount, byes, rounds, configMode:'random'|'manual', matches:[...]}
+      bracketRound: 0,        // which round tab is open on mobile
+      bracketFilter: 'all',   // all | pending | completed (tourney match list)
+      editorSlots: null       // working array of competitor ids/null while in the manual bracket editor
     };
   }
   var state = freshState();
@@ -516,9 +625,12 @@
       createdAt: state.createdAt,
       updatedAt: new Date().toISOString(),
       formatVersion: FORMAT_VERSION,
+      type: state.type || 'draw',
       mode: state.mode,
       players: state.players,
-      matches: state.matches
+      matches: state.matches,
+      teams: state.teams,
+      bracket: state.bracket
     };
   }
 
@@ -543,9 +655,12 @@
       state.name = record.name;
       state.createdAt = record.createdAt;
       state.updatedAt = record.updatedAt;
+      state.type = record.type || 'draw';
       state.mode = record.mode;
       state.players = record.players;
-      state.matches = record.matches;
+      state.matches = record.matches || [];
+      state.teams = record.teams || [];
+      state.bracket = record.bracket || null;
       state.playerCount = record.players.length;
       state.hasGenerated = true;
       state.screen = 'dashboard';
@@ -831,6 +946,291 @@
   }
 
   /* ============================================================
+     TOURNEY MODE — BRACKET ENGINE
+     Pure(ish) functions that build and progress a knockout bracket.
+     Kept separate from the Draw-mode scheduler above; Draw mode never
+     touches any of this.
+  ============================================================ */
+  var ROUND_LABELS = {2:'Final', 4:'Semifinal', 8:'Quarterfinal', 16:'Round of 16', 32:'Round of 32', 64:'Round of 64'};
+  function roundLabelFor(participants){ return ROUND_LABELS[participants] || ('Round of ' + participants); }
+
+  function nextPow2(n){ var p = 1; while (p < n) p *= 2; return p; }
+
+  // Competitor count -> bracket shape. Requirement #3: arbitrary counts 3-48,
+  // auto-padded to the next power of two with BYEs.
+  function buildBracketSkeleton(n){
+    var slotCount = Math.max(2, nextPow2(n));
+    return {slotCount: slotCount, byes: slotCount - n, rounds: Math.log2(slotCount)};
+  }
+
+  // Produces a slot arrangement (array of competitorId|null, length slotCount)
+  // that is ALWAYS valid: byes are pre-distributed one-per-pair (never two BYEs
+  // facing each other), then everything is shuffled. Used both for "Randomize
+  // Matchups" and as the starting point for the manual editor.
+  function assignSlotsRandom(competitorIds, slotCount, byes){
+    var numPairs = slotCount / 2;
+    var pairHasBye = [];
+    for (var i = 0; i < numPairs; i++) pairHasBye.push(i < byes);
+    pairHasBye = shuffleArr(pairHasBye);
+    var pool = shuffleArr(competitorIds);
+    var slots = new Array(slotCount).fill(null);
+    var pi = 0;
+    for (var p = 0; p < numPairs; p++){
+      if (pairHasBye[p]){
+        var real = pool[pi++];
+        if (Math.random() < 0.5){ slots[p*2] = real; } else { slots[p*2+1] = real; }
+      } else {
+        slots[p*2] = pool[pi++];
+        slots[p*2+1] = pool[pi++];
+      }
+    }
+    return slots;
+  }
+
+  // Requirement #6/#24: validation before a manually-edited bracket can be confirmed.
+  function validateSlots(slots, expectedCompetitorIds){
+    var numPairs = slots.length / 2;
+    for (var p = 0; p < numPairs; p++){
+      if (slots[p*2] === null && slots[p*2+1] === null){
+        return 'Two BYEs are facing each other in slot ' + (p*2+1) + '/' + (p*2+2) + ' — every pair needs at least one real competitor.';
+      }
+    }
+    var seen = {}, count = 0, dup = false;
+    slots.forEach(function(s){
+      if (s === null) return;
+      if (seen[s]) dup = true; else { seen[s] = true; count++; }
+    });
+    if (dup) return 'A competitor appears twice in the bracket.';
+    if (count !== expectedCompetitorIds.length) return 'Not every competitor has a bracket slot.';
+    for (var i = 0; i < expectedCompetitorIds.length; i++){
+      if (!seen[expectedCompetitorIds[i]]) return 'Not every competitor has a bracket slot.';
+    }
+    return null;
+  }
+
+  // Builds the full match tree (every round through the Final) from a validated
+  // round-1 slot arrangement. Byes auto-resolve immediately; every match knows
+  // its next match + which slot it feeds, so winners always propagate correctly.
+  function buildBracketMatches(slots){
+    var slotCount = slots.length;
+    var matches = [];
+    var roundParticipants = slotCount;
+    var numPairs = slotCount / 2;
+    var currentRound = [];
+    for (var p = 0; p < numPairs; p++){
+      var a = slots[p*2], b = slots[p*2+1];
+      var isBye = (a === null) !== (b === null);
+      var m = {
+        id: 'm_r0_' + p, round: 0, roundParticipants: roundParticipants, roundLabel: roundLabelFor(roundParticipants),
+        position: p, competitor1: a, competitor2: b, winner: null, loser: null,
+        score1: null, score2: null, status: isBye ? 'bye' : 'pending',
+        nextMatchId: null, nextMatchSlot: null, sourceMatch1: null, sourceMatch2: null
+      };
+      if (isBye) m.winner = (a === null ? b : a);
+      currentRound.push(m);
+    }
+    matches = matches.concat(currentRound);
+
+    var roundIndex = 1;
+    roundParticipants = roundParticipants / 2;
+    var prevRound = currentRound;
+    while (prevRound.length > 1){
+      var nextRound = [];
+      for (var i = 0; i < prevRound.length / 2; i++){
+        var src1 = prevRound[i*2], src2 = prevRound[i*2+1];
+        var nm = {
+          id: 'm_r' + roundIndex + '_' + i, round: roundIndex, roundParticipants: roundParticipants, roundLabel: roundLabelFor(roundParticipants),
+          position: i,
+          competitor1: src1.status === 'bye' ? src1.winner : null,
+          competitor2: src2.status === 'bye' ? src2.winner : null,
+          winner: null, loser: null, score1: null, score2: null, status: 'waiting',
+          nextMatchId: null, nextMatchSlot: null, sourceMatch1: src1.id, sourceMatch2: src2.id
+        };
+        src1.nextMatchId = nm.id; src1.nextMatchSlot = 1;
+        src2.nextMatchId = nm.id; src2.nextMatchSlot = 2;
+        if (nm.competitor1 !== null && nm.competitor2 !== null) nm.status = 'pending';
+        nextRound.push(nm);
+      }
+      matches = matches.concat(nextRound);
+      prevRound = nextRound;
+      roundParticipants = roundParticipants / 2;
+      roundIndex++;
+    }
+    return matches;
+  }
+
+  function bracketMatchById(id){
+    if (!state.bracket) return null;
+    for (var i = 0; i < state.bracket.matches.length; i++) if (state.bracket.matches[i].id === id) return state.bracket.matches[i];
+    return null;
+  }
+
+  // Requirement #9: winner automatically populates the correct next-round slot.
+  // Requirement #7: BYEs never count as played matches / never touch stats.
+  function advanceBracketWinner(m){
+    if (!m.nextMatchId) return;
+    var nm = bracketMatchById(m.nextMatchId);
+    if (!nm) return;
+    if (m.nextMatchSlot === 1) nm.competitor1 = m.winner; else nm.competitor2 = m.winner;
+    if (nm.competitor1 !== null && nm.competitor2 !== null && nm.status === 'waiting') nm.status = 'pending';
+  }
+
+  function completeBracketMatch(m, score1, score2){
+    m.score1 = score1; m.score2 = score2;
+    m.winner = score1 > score2 ? m.competitor1 : m.competitor2;
+    m.loser = score1 > score2 ? m.competitor2 : m.competitor1;
+    m.status = 'completed';
+    advanceBracketWinner(m);
+  }
+
+  function isTourneyChampionDecided(){
+    if (!state.bracket) return false;
+    var final = state.bracket.matches[state.bracket.matches.length - 1];
+    return final.status === 'completed';
+  }
+  function tourneyChampionId(){
+    if (!isTourneyChampionDecided()) return null;
+    var final = state.bracket.matches[state.bracket.matches.length - 1];
+    return final.winner;
+  }
+  function tourneyFinalMatch(){ return state.bracket ? state.bracket.matches[state.bracket.matches.length - 1] : null; }
+
+  // Requirement #16: finishing position based on the round a competitor was
+  // actually eliminated in (a BYE never counts as "having played").
+  function computeTourneyFinish(){
+    var out = {}; // competitorId -> label
+    if (!state.bracket) return out;
+    var matches = state.bracket.matches;
+    var totalRounds = state.bracket.rounds;
+    var final = matches[matches.length - 1];
+
+    getTourneyCompetitors().forEach(function(c){ out[c.id] = 'Active'; });
+
+    matches.forEach(function(m){
+      if (m.status !== 'completed') return;
+      var loserId = m.loser;
+      var stageParticipants = m.roundParticipants;
+      var label;
+      if (m === final){
+        out[m.winner] = 'Champion';
+        out[loserId] = 'Runner-up';
+        return;
+      }
+      if (stageParticipants === 4) label = 'Semifinalist';
+      else if (stageParticipants === 8) label = 'Quarterfinalist';
+      else label = 'Round of ' + stageParticipants;
+      out[loserId] = label;
+    });
+    return out;
+  }
+
+  function computeTourneyStats(){
+    // Matches Played / Wins / Losses / Points For / Points Against — BYEs excluded entirely.
+    var stats = {};
+    getTourneyCompetitors().forEach(function(c){
+      stats[c.id] = {played:0, wins:0, losses:0, pf:0, pa:0};
+    });
+    if (!state.bracket) return stats;
+    state.bracket.matches.forEach(function(m){
+      if (m.status !== 'completed') return; // excludes 'bye', 'pending', 'waiting'
+      var s1 = stats[m.competitor1], s2 = stats[m.competitor2];
+      if (!s1 || !s2) return;
+      s1.played++; s2.played++;
+      s1.pf += m.score1; s1.pa += m.score2;
+      s2.pf += m.score2; s2.pa += m.score1;
+      if (m.winner === m.competitor1){ s1.wins++; s2.losses++; } else { s2.wins++; s1.losses++; }
+    });
+    return stats;
+  }
+
+  // A "competitor" is a player (singles) or a fixed team (doubles) — the unit
+  // that actually occupies one bracket slot. Requirement #25.
+  function getTourneyCompetitors(){
+    if (state.mode === '1v1'){
+      return state.players.map(function(p){ return {id:p.id, label:p.name, color:p.color, playerIds:[p.id]}; });
+    }
+    return state.teams.map(function(t){
+      var names = t.playerIds.map(function(pid){ var p = playerById(pid); return p.name; });
+      return {id:t.id, label: names.join(' / '), color:t.color, playerIds: t.playerIds.slice()};
+    });
+  }
+  function competitorById(id){
+    if (id === null || id === undefined) return null;
+    var list = getTourneyCompetitors();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  function actionRandomizeBracket(){
+    var comps = getTourneyCompetitors().map(function(c){ return c.id; });
+    var skel = buildBracketSkeleton(comps.length);
+    var slots = assignSlotsRandom(comps, skel.slotCount, skel.byes);
+    state.bracket = {slotCount:skel.slotCount, byes:skel.byes, rounds:skel.rounds, configMode:'random', matches: buildBracketMatches(slots)};
+    state.hasGenerated = true;
+    state.id = state.id || generateId();
+    state.name = state.name || defaultTournamentName();
+    state.createdAt = state.createdAt || new Date().toISOString();
+    state.updatedAt = new Date().toISOString();
+    state.screen = 'dashboard';
+    persistActiveTournament();
+    render();
+    showToast('Bracket randomized — ' + skel.slotCount + ' slots, ' + skel.byes + ' BYE' + (skel.byes === 1 ? '' : 's'));
+  }
+
+  function actionOpenManualEditor(){
+    var comps = getTourneyCompetitors().map(function(c){ return c.id; });
+    var skel = buildBracketSkeleton(comps.length);
+    state.editorSlots = assignSlotsRandom(comps, skel.slotCount, skel.byes);
+    state.screen = 'setup-bracket-editor';
+    render();
+  }
+
+  function actionConfirmManualBracket(){
+    var comps = getTourneyCompetitors().map(function(c){ return c.id; });
+    var err = validateSlots(state.editorSlots, comps);
+    if (err){ showToast(err); return; }
+    var skel = buildBracketSkeleton(comps.length);
+    state.bracket = {slotCount:skel.slotCount, byes:skel.byes, rounds:skel.rounds, configMode:'manual', matches: buildBracketMatches(state.editorSlots)};
+    state.editorSlots = null;
+    state.hasGenerated = true;
+    state.id = state.id || generateId();
+    state.name = state.name || defaultTournamentName();
+    state.createdAt = state.createdAt || new Date().toISOString();
+    state.updatedAt = new Date().toISOString();
+    state.screen = 'dashboard';
+    persistActiveTournament();
+    render();
+    showToast('Bracket confirmed');
+  }
+
+  function actionResetMatchResults(){
+    confirmAction({
+      title: 'Reset match results?',
+      body: 'Every score is cleared and the bracket returns to Round 1 — the bracket layout (who plays whom) stays exactly as it is.',
+      confirmLabel: 'Reset results',
+      onConfirm: function(){
+        var slots = new Array(state.bracket.slotCount).fill(null);
+        state.bracket.matches.filter(function(m){ return m.round === 0; }).forEach(function(m){
+          slots[m.position*2] = m.competitor1; slots[m.position*2+1] = m.competitor2;
+        });
+        state.bracket.matches = buildBracketMatches(slots);
+        persistActiveTournament();
+        render();
+        showToast('Match results reset');
+      }
+    });
+  }
+
+  function actionResetBracketLayout(){
+    confirmAction({
+      title: 'Reset bracket layout?',
+      body: 'This re-randomizes who plays whom in Round 1 and clears all results. This cannot be undone.',
+      confirmLabel: 'Reset bracket',
+      onConfirm: function(){ actionRandomizeBracket(); }
+    });
+  }
+
+  /* ============================================================
      TOURNAMENT LIFECYCLE ACTIONS
   ============================================================ */
   function actionNewTournament(){
@@ -920,7 +1320,9 @@
     if (!record){ showToast('That tournament could not be found'); return; }
     state = {
       screen: 'dashboard', id: record.id, name: record.name, createdAt: record.createdAt, updatedAt: record.updatedAt,
-      mode: record.mode, playerCount: record.players.length, players: record.players, matches: record.matches,
+      type: record.type || 'draw',
+      mode: record.mode, playerCount: record.players.length, players: record.players, matches: record.matches || [],
+      teams: record.teams || [], bracket: record.bracket || null, bracketRound: 0, bracketFilter: 'all', editorSlots: null,
       filter: 'all', hasGenerated: true, mobileStandingsOpen: false
     };
     setActiveTournamentId(record.id);
@@ -948,22 +1350,45 @@
     var record = loadTournamentRecord(id);
     if (!record) return null;
     var now = new Date().toISOString();
-    var newMatches = record.matches.map(function(m){
-      var copy = {};
-      for (var k in m) copy[k] = m[k];
-      if (!keepScores){ copy.score1 = null; copy.score2 = null; copy.status = 'pending'; }
-      return copy;
-    });
     var newRecord = {
       id: generateId(),
       name: record.name + (keepScores ? ' (Copy)' : ' (New Session)'),
       createdAt: now,
       updatedAt: now,
       formatVersion: FORMAT_VERSION,
+      type: record.type || 'draw',
       mode: record.mode,
       players: record.players.map(function(p){ return {id:p.id, name:p.name, color:p.color}; }),
-      matches: newMatches
+      teams: (record.teams || []).map(function(t){ return {id:t.id, playerIds:t.playerIds.slice(), color:t.color}; }),
+      matches: (record.matches || []).map(function(m){
+        var copy = {};
+        for (var k in m) copy[k] = m[k];
+        if (!keepScores){ copy.score1 = null; copy.score2 = null; copy.status = 'pending'; }
+        return copy;
+      }),
+      bracket: null
     };
+    if (record.bracket){
+      // Duplicating without scores rebuilds a fresh match tree from the same
+      // Round-1 slot layout (Requirement #21): bracket structure/colors preserved,
+      // results/progression/champion state reset.
+      if (keepScores){
+        newRecord.bracket = {
+          slotCount: record.bracket.slotCount, byes: record.bracket.byes, rounds: record.bracket.rounds,
+          configMode: record.bracket.configMode,
+          matches: record.bracket.matches.map(function(m){ var c = {}; for (var k in m) c[k] = m[k]; return c; })
+        };
+      } else {
+        var slots = new Array(record.bracket.slotCount).fill(null);
+        record.bracket.matches.filter(function(m){ return m.round === 0; }).forEach(function(m){
+          slots[m.position*2] = m.competitor1; slots[m.position*2+1] = m.competitor2;
+        });
+        newRecord.bracket = {
+          slotCount: record.bracket.slotCount, byes: record.bracket.byes, rounds: record.bracket.rounds,
+          configMode: record.bracket.configMode, matches: buildBracketMatches(slots)
+        };
+      }
+    }
     saveTournamentRecord(newRecord);
     return newRecord;
   }
@@ -1063,6 +1488,17 @@
         return 'A player entry is invalid';
       }
     }
+    var type = t.type || 'draw';
+    if (type === 'tourney'){
+      var b = t.bracket;
+      if (!b || !Array.isArray(b.matches) || !b.slotCount) return 'Tournament bracket data is missing or invalid';
+      if (t.mode === '2v2' && !Array.isArray(t.teams)) return 'Team list is missing or invalid';
+      for (var k = 0; k < b.matches.length; k++){
+        var bm = b.matches[k];
+        if (!bm || typeof bm.id !== 'string' || typeof bm.round !== 'number' || !bm.status) return 'A bracket match entry is invalid';
+      }
+      return null;
+    }
     if (!Array.isArray(t.matches)) return 'Match list is missing or invalid';
     for (var j = 0; j < t.matches.length; j++){
       var m = t.matches[j];
@@ -1076,16 +1512,19 @@
   }
 
   function migrateTournamentRecord(t){
-    // Room to translate older format versions forward; only v2 exists today.
+    // Room to translate older format versions forward.
     return {
       id: null, // assigned fresh on import to avoid colliding with an existing tournament
       name: (t.name && String(t.name).trim()) || defaultTournamentName(),
       createdAt: t.createdAt || new Date().toISOString(),
       updatedAt: t.updatedAt || new Date().toISOString(),
       formatVersion: FORMAT_VERSION,
+      type: t.type || 'draw',
       mode: t.mode,
       players: t.players,
-      matches: t.matches
+      matches: t.matches || [],
+      teams: t.teams || [],
+      bracket: t.bracket || null
     };
   }
 
@@ -1582,7 +2021,73 @@
     return canvas;
   }
 
+  // Requirement #19: Tourney share image prioritizes a clean champion/runner-up
+  // summary rather than cramming a 48-player bracket into a tiny social image.
+  function generateTourneyStatsImageCanvas(){
+    var W = 1080, H = 1080, pad = 64;
+    var contentW = W - pad * 2;
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#123524'); grad.addColorStop(1, '#0D2A1B');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+    var y = 96;
+    ctx.fillStyle = '#fff';
+    ctx.font = '700 24px Outfit, sans-serif';
+    ctx.fillText('\uD83C\uDFC6 SHUTTLE DRAW \u00b7 TOURNEY', pad, y - 6);
+
+    y += 70;
+    ctx.font = '700 46px Outfit, sans-serif';
+    ctx.fillText(fitCanvasText(ctx, state.name || 'Tournament', contentW), pad, y);
+
+    y += 32;
+    var comps = getTourneyCompetitors();
+    ctx.font = '500 20px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillText((state.mode === '1v1' ? 'Singles' : 'Doubles') + '  \u00b7  ' + comps.length + (state.mode==='2v2'?' teams':' players') + '  \u00b7  ' + state.bracket.slotCount + '-slot bracket', pad, y);
+
+    y += 70;
+    var champId = tourneyChampionId();
+    var final = tourneyFinalMatch();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    canvasRoundRect(ctx, pad, y, contentW, 190, 18); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '600 16px Inter, sans-serif';
+    ctx.fillText(champId ? 'CHAMPION' : 'IN PROGRESS', pad + 28, y + 40);
+    ctx.fillStyle = '#D98E3B';
+    ctx.font = '700 42px Outfit, sans-serif';
+    ctx.fillText(fitCanvasText(ctx, champId ? competitorById(champId).label : (currentTourneyRoundLabel()), contentW - 56), pad + 28, y + 92);
+    if (champId && final && final.status === 'completed'){
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '600 16px Inter, sans-serif';
+      ctx.fillText('RUNNER-UP', pad + 28, y + 132);
+      ctx.fillStyle = '#fff';
+      ctx.font = '700 24px Outfit, sans-serif';
+      ctx.fillText(fitCanvasText(ctx, competitorById(final.loser).label + '   (Final: ' + final.score1 + '\u2013' + final.score2 + ')', contentW - 56), pad + 28, y + 164);
+    }
+    y += 190 + 40;
+
+    var playable = state.bracket.matches.filter(function(m){ return m.status !== 'bye'; });
+    var completedCount = playable.filter(function(m){ return m.status === 'completed'; }).length;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '500 18px Inter, sans-serif';
+    ctx.fillText(completedCount + ' / ' + playable.length + ' matches played \u00b7 ' + state.bracket.byes + ' BYE' + (state.bracket.byes===1?'':'s'), pad, y);
+
+    return canvas;
+  }
+
   function openShareImageModal(){
+    if (state.type === 'tourney'){
+      if (!state.bracket){ showToast('Generate a tournament first'); return; }
+      var canvas2 = generateTourneyStatsImageCanvas();
+      shareImageCanvasRef = canvas2;
+      shareImageDataUrl = canvas2.toDataURL('image/png');
+      shareImageModalOpen = true;
+      render();
+      return;
+    }
     if (!state.matches.length){ showToast('Generate a tournament first'); return; }
     var canvas = generateStatsImageCanvas();
     shareImageCanvasRef = canvas;
@@ -1844,7 +2349,119 @@
       '<style>' + REPORT_CSS + '</style></head><body>' + container.outerHTML + '</body></html>';
   }
 
+  // Requirement #18: tournament report for Tourney mode — overview, bracket
+  // summary, champion/runner-up, finish positions, stats, and round-by-round
+  // results, built with the same report look-and-feel as the Draw report.
+  function buildTourneyReportDocument(){
+    var comps = getTourneyCompetitors();
+    var finish = computeTourneyFinish();
+    var stats = computeTourneyStats();
+    var b = state.bracket;
+    var playable = b.matches.filter(function(m){ return m.status !== 'bye'; });
+    var completed = playable.filter(function(m){ return m.status === 'completed'; });
+    var champ = tourneyChampionId();
+    var final = tourneyFinalMatch();
+
+    var ranked = comps.slice().sort(function(a,b2){
+      var order = {'Champion':0,'Runner-up':1};
+      var ra = order.hasOwnProperty(finish[a.id]) ? order[finish[a.id]] : 50;
+      var rb = order.hasOwnProperty(finish[b2.id]) ? order[finish[b2.id]] : 50;
+      if (ra !== rb) return ra - rb;
+      return (stats[b2.id].wins - stats[a.id].wins);
+    });
+
+    var container = el('div', {class:'report'});
+    var header = el('header', {class:'r-header'});
+    header.appendChild(el('div', {class:'r-brand'}, ['\uD83C\uDFC6 Shuttle Draw \u00b7 Tourney']));
+    header.appendChild(el('h1', {}, [state.name || 'Tournament Report']));
+    header.appendChild(el('div', {class:'r-meta'}, [
+      (state.mode === '1v1' ? 'Singles' : 'Doubles') + ' \u00b7 ' + comps.length + (state.mode==='2v2'?' teams':' players') + ' \u00b7 Generated ' + new Date().toLocaleDateString()
+    ]));
+    container.appendChild(header);
+
+    var overview = el('section', {class:'r-section'});
+    overview.appendChild(el('h2', {}, ['Tournament Overview']));
+    var ogrid = el('div', {class:'r-stat-grid'});
+    ogrid.appendChild(reportStat(b.slotCount, 'Bracket Slots'));
+    ogrid.appendChild(reportStat(b.byes, 'BYEs'));
+    ogrid.appendChild(reportStat(b.rounds, 'Rounds'));
+    ogrid.appendChild(reportStat(completed.length + ' / ' + playable.length, 'Matches Played'));
+    overview.appendChild(ogrid);
+    container.appendChild(overview);
+
+    var hSec = el('section', {class:'r-section'});
+    hSec.appendChild(el('h2', {}, ['Champion']));
+    var hgrid = el('div', {class:'r-highlight-grid'});
+    hgrid.appendChild(reportHighlight('\uD83C\uDFC6 Champion', champ ? competitorById(champ).label : 'Not yet decided'));
+    if (final && final.status === 'completed'){
+      hgrid.appendChild(reportHighlight('\uD83E\uDD48 Runner-up', competitorById(final.loser).label));
+      hgrid.appendChild(reportHighlight('Final Score', final.score1 + ' \u2013 ' + final.score2));
+    }
+    hSec.appendChild(hgrid);
+    container.appendChild(hSec);
+
+    var sSec = el('section', {class:'r-section'});
+    sSec.appendChild(el('h2', {}, ['Tournament Finish']));
+    var table = el('table', {class:'r-table'});
+    var thead = el('thead', {}, [el('tr', {}, [el('th',{},['#']), el('th',{},[state.mode==='2v2'?'Team':'Player']), el('th',{},['Finish']), el('th',{},['W-L']), el('th',{},['PF-PA'])])]);
+    table.appendChild(thead);
+    var tbody = el('tbody');
+    ranked.forEach(function(c, i){
+      var s = stats[c.id];
+      tbody.appendChild(el('tr', {}, [
+        el('td',{},[String(i+1)]),
+        el('td',{}, [el('span', {class:'r-dot', style:'background:'+c.color+';'}), c.label]),
+        el('td',{},[finish[c.id]]),
+        el('td',{},[s.wins+'-'+s.losses]),
+        el('td',{},[s.pf+'-'+s.pa])
+      ]));
+    });
+    table.appendChild(tbody);
+    sSec.appendChild(table);
+    container.appendChild(sSec);
+
+    var mSec = el('section', {class:'r-section'});
+    mSec.appendChild(el('h2', {}, ['Round-by-Round Results']));
+    if (!completed.length){
+      mSec.appendChild(el('p', {class:'r-empty'}, ['No matches have been completed yet.']));
+    } else {
+      for (var r = 0; r < b.rounds; r++){
+        var roundMatches = completed.filter(function(m){ return m.round === r; });
+        if (!roundMatches.length) continue;
+        mSec.appendChild(el('h3', {class:'r-phase-title'}, [roundMatches[0].roundLabel]));
+        var mtable = el('table', {class:'r-table r-match-table'});
+        var mtbody = el('tbody');
+        roundMatches.forEach(function(m){
+          var c1 = competitorById(m.competitor1), c2 = competitorById(m.competitor2);
+          mtbody.appendChild(el('tr', {}, [
+            el('td', {class: m.winner===m.competitor1?'r-winner':''}, [c1.label]),
+            el('td', {class:'r-score'}, [m.score1 + ' \u2013 ' + m.score2]),
+            el('td', {class: m.winner===m.competitor2?'r-winner':''}, [c2.label])
+          ]));
+        });
+        mtable.appendChild(mtbody);
+        mSec.appendChild(mtable);
+      }
+    }
+    container.appendChild(mSec);
+
+    container.appendChild(el('footer', {class:'r-footer'}, ['Generated with Shuttle Draw \u00b7 ' + new Date().toLocaleString()]));
+
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+      '<title>' + escapeHtml(state.name || 'Tournament Report') + ' \u2014 Shuttle Draw</title>' +
+      '<style>' + REPORT_CSS + '</style></head><body>' + container.outerHTML + '</body></html>';
+  }
+
   function shareFullStatistics(){
+    if (state.type === 'tourney'){
+      if (!state.bracket){ showToast('Generate a tournament first'); return; }
+      var html2 = buildTourneyReportDocument();
+      var filename2 = 'Shuttle-Draw-' + toFilenameSegment(state.name || 'Tournament') + '-Report.html';
+      downloadTextFile(filename2, 'text/html', html2);
+      showToast('Tournament report downloaded');
+      return;
+    }
     if (!state.matches.length){ showToast('Generate a tournament first'); return; }
     var html = buildReportDocument();
     var filename = 'Shuttle-Draw-' + toFilenameSegment(state.name || 'Tournament') + '-Statistics.html';
@@ -1859,9 +2476,13 @@
     document.documentElement.classList.toggle('dashboard-mode', isDashboard);
     document.body.classList.toggle('dashboard-mode', isDashboard);
 
-    if (state.screen === 'setup-mode') root.appendChild(renderModeScreen());
+    if (state.screen === 'setup-type') root.appendChild(renderTypeScreen());
+    else if (state.screen === 'setup-mode') root.appendChild(renderModeScreen());
     else if (state.screen === 'setup-count') root.appendChild(renderCountScreen());
     else if (state.screen === 'setup-players') root.appendChild(renderPlayersScreen());
+    else if (state.screen === 'setup-bracket-choice') root.appendChild(renderBracketChoiceScreen());
+    else if (state.screen === 'setup-bracket-editor') root.appendChild(renderBracketEditorScreen());
+    else if (state.type === 'tourney') root.appendChild(renderTourneyDashboard());
     else root.appendChild(renderDashboard());
 
     if (managerOpen) root.appendChild(renderManagerModal());
@@ -1869,6 +2490,62 @@
     if (shareImageModalOpen) root.appendChild(renderShareImageModal());
     if (duplicatePromptId) root.appendChild(renderDuplicateModal());
     if (pendingAction) root.appendChild(renderConfirmModal());
+  }
+
+  /* ============================================================
+     SETUP: TYPE (Draw vs Tourney)
+  ============================================================ */
+  function renderTypeScreen(){
+    var wrap = el('div', {class:'setup-wrap'});
+    var card = el('div', {class:'setup-card'});
+
+    var brandRow = el('div', {class:'brand-row'});
+    brandRow.appendChild(brandBlock());
+    var links = el('div', {class:'setup-links'});
+    links.appendChild(el('button', {class:'btn btn-outline btn-sm', onclick:function(){
+      managerOpen = true; render();
+    }}, ['📂 Saved Tournaments']));
+    links.appendChild(el('button', {class:'btn btn-outline btn-sm', onclick:triggerImportFile}, ['⬆ Import']));
+    brandRow.appendChild(links);
+    card.appendChild(brandRow);
+
+    card.appendChild(el('div', {class:'step-dots'}, [
+      el('i', {class:'active'}), el('i'), el('i'), el('i')
+    ]));
+    card.appendChild(el('h2', {}, ['What are you setting up?']));
+    card.appendChild(el('p', {class:'setup-sub'}, ['Choose how today\'s players compete.']));
+
+    var grid = el('div', {class:'mode-grid'});
+    var drawCard = el('div', {class:'mode-card' + (state.type === 'draw' ? ' selected' : ''), onclick:function(){
+      state.type = 'draw'; render();
+    }});
+    drawCard.appendChild(el('span', {class:'icon'}, ['📋']));
+    drawCard.appendChild(el('div', {class:'title'}, ['Draw']));
+    drawCard.appendChild(el('div', {class:'desc'}, ['A fair round-robin style draw — everyone plays a balanced schedule of matches.']));
+    grid.appendChild(drawCard);
+
+    var tourneyCard = el('div', {class:'mode-card' + (state.type === 'tourney' ? ' selected' : ''), onclick:function(){
+      state.type = 'tourney'; render();
+    }});
+    tourneyCard.appendChild(el('span', {class:'icon'}, ['🏆']));
+    tourneyCard.appendChild(el('div', {class:'title'}, ['Tourney']));
+    tourneyCard.appendChild(el('div', {class:'desc'}, ['A single-elimination knockout bracket with BYEs, live progression and a champion.']));
+    grid.appendChild(tourneyCard);
+    card.appendChild(grid);
+
+    var actions = el('div', {class:'setup-actions'});
+    actions.appendChild(el('span', {}, []));
+    var next = el('button', {class:'btn btn-primary', onclick:function(){
+      if (!state.type) return;
+      state.screen = 'setup-mode';
+      render();
+    }}, ['Continue →']);
+    if (!state.type) next.setAttribute('disabled', 'disabled');
+    actions.appendChild(next);
+    card.appendChild(actions);
+
+    wrap.appendChild(card);
+    return wrap;
   }
 
   /* ============================================================
@@ -1889,21 +2566,25 @@
     card.appendChild(brandRow);
 
     card.appendChild(el('div', {class:'step-dots'}, [
-      el('i', {class:'active'}), el('i'), el('i')
+      el('i', {class:'done'}), el('i', {class:'active'}), el('i'), el('i')
     ]));
     card.appendChild(el('h2', {}, ['Choose your format']));
-    card.appendChild(el('p', {class:'setup-sub'}, ['Pick singles or doubles to begin building today\'s draw.']));
+    card.appendChild(el('p', {class:'setup-sub'}, [
+      state.type === 'tourney' ? 'Pick singles or doubles for the knockout bracket.' : 'Pick singles or doubles to begin building today\'s draw.'
+    ]));
 
     var grid = el('div', {class:'mode-grid'});
-    grid.appendChild(modeCard('1v1', '🏸', 'Singles', '1 vs 1 — every player faces every other player once.'));
-    grid.appendChild(modeCard('2v2', '👥', 'Doubles', '2 vs 2 — rotating partners and opponents each match.'));
+    grid.appendChild(modeCard('1v1', '🏸', 'Singles', '1 vs 1' + (state.type === 'tourney' ? ' — a knockout bracket of individual players.' : ' — every player faces every other player once.')));
+    grid.appendChild(modeCard('2v2', '👥', 'Doubles', '2 vs 2' + (state.type === 'tourney' ? ' — fixed teams face off in a knockout bracket.' : ' — rotating partners and opponents each match.')));
     card.appendChild(grid);
 
     var actions = el('div', {class:'setup-actions'});
-    actions.appendChild(el('span', {}, []));
+    actions.appendChild(el('button', {class:'btn btn-ghost', onclick:function(){
+      state.screen = 'setup-type'; render();
+    }}, ['← Back']));
     var next = el('button', {class:'btn btn-primary', disabled: state.mode ? null : 'disabled', onclick:function(){
       if (!state.mode) return;
-      state.playerCount = state.mode === '1v1' ? 4 : 4;
+      state.playerCount = state.type === 'tourney' ? (state.mode === '1v1' ? 4 : 4) : 4;
       state.screen = 'setup-count';
       render();
     }}, ['Continue →']);
@@ -1946,19 +2627,24 @@
      SETUP: PLAYER COUNT
   ============================================================ */
   function renderCountScreen(){
-    var min = state.mode === '1v1' ? 3 : 4;
-    var max = 10;
+    var isTourney = state.type === 'tourney';
+    var unit = isTourney && state.mode === '2v2' ? 'teams' : 'players';
+    var min = isTourney ? 3 : (state.mode === '1v1' ? 3 : 4);
+    var max = isTourney ? 48 : 10;
     if (!state.playerCount || state.playerCount < min) state.playerCount = min;
+    if (state.playerCount > max) state.playerCount = max;
 
     var wrap = el('div', {class:'setup-wrap'});
     var card = el('div', {class:'setup-card'});
     card.appendChild(brandBlock());
     card.appendChild(el('div', {class:'step-dots'}, [
-      el('i', {class:'done'}), el('i', {class:'active'}), el('i')
+      el('i', {class:'done'}), el('i', {class:'done'}), el('i', {class:'active'}), el('i')
     ]));
-    card.appendChild(el('h2', {}, ['How many players?']));
+    card.appendChild(el('h2', {}, ['How many ' + unit + '?']));
     card.appendChild(el('p', {class:'setup-sub'}, [
-      state.mode === '1v1' ? 'Singles needs at least 3 players (max 10).' : 'Doubles needs at least 4 players (max 10).'
+      isTourney
+        ? 'The knockout bracket auto-pads to the next power of two with BYEs — any count from ' + min + ' to ' + max + ' works.'
+        : (state.mode === '1v1' ? 'Singles needs at least 3 players (max 10).' : 'Doubles needs at least 4 players (max 10).')
     ]));
 
     var row = el('div', {class:'count-row'});
@@ -1974,24 +2660,40 @@
     if (state.playerCount >= max) plus.setAttribute('disabled','disabled');
     row.appendChild(plus);
     card.appendChild(row);
-    card.appendChild(el('div', {class:'count-hint'}, ['players (' + min + '–' + max + ' allowed)']));
+    card.appendChild(el('div', {class:'count-hint'}, [unit + ' (' + min + '–' + max + ' allowed)']));
 
-    var stats = computeScheduleStats(state.mode, state.playerCount);
-    var preview = el('div', {class:'combo-preview'});
-    preview.appendChild(el('div', {class:'summary-title'}, ['Tournament Summary']));
+    if (isTourney){
+      var skel = buildBracketSkeleton(state.playerCount);
+      var preview = el('div', {class:'combo-preview'});
+      preview.appendChild(el('div', {class:'summary-title'}, ['Bracket Summary']));
+      var grid2 = el('div', {class:'summary-grid'});
+      grid2.appendChild(summaryStat(skel.slotCount, 'Bracket Slots'));
+      grid2.appendChild(summaryStat(skel.byes, 'BYEs'));
+      grid2.appendChild(summaryStat(skel.rounds, 'Rounds'));
+      preview.appendChild(grid2);
+      preview.appendChild(el('div', {class:'summary-note'}, [
+        state.playerCount + ' ' + unit + ' → a ' + skel.slotCount + '-slot bracket (' + roundLabelFor(skel.slotCount) + ' onward), with ' +
+        skel.byes + ' BYE' + (skel.byes === 1 ? '' : 's') + ' automatically advancing to Round 2.'
+      ]));
+      card.appendChild(preview);
+    } else {
+      var stats = computeScheduleStats(state.mode, state.playerCount);
+      var preview2 = el('div', {class:'combo-preview'});
+      preview2.appendChild(el('div', {class:'summary-title'}, ['Tournament Summary']));
 
-    var grid = el('div', {class:'summary-grid'});
-    grid.appendChild(summaryStat(stats.totalMatches, 'Unique Matches'));
-    grid.appendChild(summaryStat(stats.matchesPerPlayer, 'Matches / Player'));
-    grid.appendChild(summaryStat(stats.totalPhases, 'Total Phases'));
-    preview.appendChild(grid);
+      var grid = el('div', {class:'summary-grid'});
+      grid.appendChild(summaryStat(stats.totalMatches, 'Unique Matches'));
+      grid.appendChild(summaryStat(stats.matchesPerPlayer, 'Matches / Player'));
+      grid.appendChild(summaryStat(stats.totalPhases, 'Total Phases'));
+      preview2.appendChild(grid);
 
-    preview.appendChild(el('div', {class:'summary-note'}, [
-      stats.evenParticipation
-        ? 'Every player takes part in exactly ' + stats.matchesPerPlayer + ' of the ' + stats.totalMatches + ' generated matches — the schedule is split into ' + stats.totalPhases + ' phases of ' + stats.phaseSize + ' match' + (stats.phaseSize === 1 ? '' : 'es') + ' each, and each phase gives every player ' + stats.appearancesPerPhase + ' appearance' + (stats.appearancesPerPhase === 1 ? '' : 's') + ' before the next phase begins.'
-        : 'With this player count, an exactly equal split isn\u2019t mathematically possible — the app will show each player\u2019s actual match count once the schedule is generated, and keep the difference as small as possible.'
-    ]));
-    card.appendChild(preview);
+      preview2.appendChild(el('div', {class:'summary-note'}, [
+        stats.evenParticipation
+          ? 'Every player takes part in exactly ' + stats.matchesPerPlayer + ' of the ' + stats.totalMatches + ' generated matches — the schedule is split into ' + stats.totalPhases + ' phases of ' + stats.phaseSize + ' match' + (stats.phaseSize === 1 ? '' : 'es') + ' each, and each phase gives every player ' + stats.appearancesPerPhase + ' appearance' + (stats.appearancesPerPhase === 1 ? '' : 's') + ' before the next phase begins.'
+          : 'With this player count, an exactly equal split isn\u2019t mathematically possible — the app will show each player\u2019s actual match count once the schedule is generated, and keep the difference as small as possible.'
+      ]));
+      card.appendChild(preview2);
+    }
 
     var actions = el('div', {class:'setup-actions'});
     actions.appendChild(el('button', {class:'btn btn-ghost', onclick:function(){
@@ -2000,11 +2702,21 @@
     actions.appendChild(el('button', {class:'btn btn-primary', onclick:function(){
       var existing = state.players || [];
       var next = [];
-      for (var i = 0; i < state.playerCount; i++){
+      var countForPlayers = (isTourney && state.mode === '2v2') ? state.playerCount * 2 : state.playerCount;
+      for (var i = 0; i < countForPlayers; i++){
         if (existing[i]) next.push(existing[i]);
         else next.push({id:'p'+i+'_'+Date.now()+Math.floor(Math.random()*1000), name:'', color:null});
       }
       state.players = next;
+      if (isTourney && state.mode === '2v2'){
+        var existingTeams = state.teams || [];
+        var teams = [];
+        for (var ti = 0; ti < state.playerCount; ti++){
+          if (existingTeams[ti]) teams.push(existingTeams[ti]);
+          else teams.push({id:'t'+ti+'_'+Date.now()+Math.floor(Math.random()*1000), playerIds:[next[ti*2].id, next[ti*2+1].id], color:null});
+        }
+        state.teams = teams;
+      }
       state.screen = 'setup-players';
       render();
     }}, ['Continue →']));
@@ -2018,79 +2730,243 @@
      SETUP: PLAYER NAMES + COLORS
   ============================================================ */
   function renderPlayersScreen(){
+    var isTourney = state.type === 'tourney';
+    var isDoublesTourney = isTourney && state.mode === '2v2';
+
     var wrap = el('div', {class:'setup-wrap'});
     var card = el('div', {class:'setup-card'});
     card.appendChild(brandBlock());
     card.appendChild(el('div', {class:'step-dots'}, [
-      el('i', {class:'done'}), el('i', {class:'done'}), el('i', {class:'active'})
+      el('i', {class:'done'}), el('i', {class:'done'}), el('i', {class:'done'}), el('i', {class:'active'})
     ]));
-    card.appendChild(el('h2', {}, ['Name your players']));
-    card.appendChild(el('p', {class:'setup-sub'}, ['Give each player a name and a color — used everywhere throughout the tournament.']));
-
-    var usedColors = {};
-    state.players.forEach(function(p){ if (p.color) usedColors[p.color] = p.id; });
+    card.appendChild(el('h2', {}, [isDoublesTourney ? 'Name your teams' : 'Name your players']));
+    card.appendChild(el('p', {class:'setup-sub'}, [
+      isDoublesTourney ? 'Give each team its two player names. Colors are assigned automatically.'
+                       : 'Give each ' + (isTourney ? 'player' : 'player') + ' a name — colors are assigned automatically.'
+    ]));
 
     var list = el('div', {class:'player-list'});
-    state.players.forEach(function(p, idx){
-      var row = el('div', {class:'player-row'});
-      row.appendChild(el('div', {class:'player-num'}, [String(idx+1)]));
-      var input = el('input', {type:'text', placeholder:'Player ' + (idx+1) + ' name', value:p.name});
-      input.value = p.name;
-      input.addEventListener('input', function(e){
-        p.name = e.target.value;
-        scheduleSave();
-      });
-      row.appendChild(input);
+    var liveInputs = []; // {get, el} pairs used for live (non-full-rerender) validation
 
-      var picker = el('div', {class:'color-picker'});
-      PALETTE.forEach(function(c){
-        var takenBy = usedColors[c.hex];
-        var isTakenByOther = takenBy && takenBy !== p.id;
-        var isChosen = p.color === c.hex;
-        var sw = el('div', {
-          class:'swatch' + (isTakenByOther ? ' taken-by-other' : '') + (isChosen ? ' chosen' : ''),
-          style:'background:' + c.hex + ';',
-          title:c.name,
-          onclick:function(){
-            if (isTakenByOther) return;
-            p.color = isChosen ? null : c.hex;
-            render();
-          }
-        });
-        picker.appendChild(sw);
+    if (isDoublesTourney){
+      state.teams.forEach(function(t, idx){
+        var row = el('div', {class:'player-row'});
+        row.appendChild(el('div', {class:'player-num'}, [String(idx+1)]));
+        var namesWrap = el('div', {style:'flex:1;display:flex;gap:8px;'});
+        var p1 = playerById(t.playerIds[0]), p2 = playerById(t.playerIds[1]);
+        var in1 = el('input', {type:'text', placeholder:'Player A', value:p1.name, style:'flex:1;'});
+        in1.value = p1.name;
+        in1.addEventListener('input', function(e){ p1.name = e.target.value; scheduleSave(); revalidate(); });
+        var in2 = el('input', {type:'text', placeholder:'Player B', value:p2.name, style:'flex:1;'});
+        in2.value = p2.name;
+        in2.addEventListener('input', function(e){ p2.name = e.target.value; scheduleSave(); revalidate(); });
+        namesWrap.appendChild(in1);
+        namesWrap.appendChild(in2);
+        row.appendChild(namesWrap);
+        list.appendChild(row);
       });
-      row.appendChild(picker);
-      list.appendChild(row);
-    });
+    } else {
+      state.players.forEach(function(p, idx){
+        var row = el('div', {class:'player-row'});
+        row.appendChild(el('div', {class:'player-num'}, [String(idx+1)]));
+        var input = el('input', {type:'text', placeholder:'Player ' + (idx+1) + ' name', value:p.name});
+        input.value = p.name;
+        input.addEventListener('input', function(e){
+          p.name = e.target.value;
+          scheduleSave();
+          revalidate();
+        });
+        row.appendChild(input);
+        list.appendChild(row);
+      });
+    }
     card.appendChild(list);
 
-    var allNamed = state.players.every(function(p){ return p.name && p.name.trim().length > 0; });
-    var allColored = state.players.every(function(p){ return !!p.color; });
-    var errMsg = null;
-    if (!allNamed) errMsg = 'Give every player a name to continue.';
-    else if (!allColored) errMsg = 'Give every player a unique color to continue.';
-
-    if (errMsg) card.appendChild(el('div', {class:'error-text'}, [errMsg]));
+    var errBox = el('div', {class:'error-text', style:'display:none;'}, ['']);
+    card.appendChild(errBox);
 
     var actions = el('div', {class:'setup-actions'});
     actions.appendChild(el('button', {class:'btn btn-ghost', onclick:function(){
       state.screen = 'setup-count'; render();
     }}, ['← Back']));
-    var goBtn = el('button', {class:'btn btn-primary', onclick:function(){
-      state.players.forEach(function(p){ p.name = p.name.trim(); });
-      state.matches = buildMatches(state.mode, state.players, false);
-      state.hasGenerated = true;
-      state.id = generateId();
-      state.name = defaultTournamentName();
-      state.createdAt = new Date().toISOString();
-      state.updatedAt = state.createdAt;
-      state.screen = 'dashboard';
-      persistActiveTournament();
-      render();
-      showToast('Generated ' + state.matches.length + ' matches');
-    }}, ['Generate Matches 🏸']);
-    if (errMsg) goBtn.setAttribute('disabled', 'disabled');
+
+    var goBtn;
+    if (isTourney){
+      goBtn = el('button', {class:'btn btn-primary', onclick:function(){
+        if (!isAllNamed()) return;
+        state.players.forEach(function(p){ p.name = p.name.trim(); });
+        reassignColorsByPosition(state.players);
+        if (state.mode === '2v2') reassignColorsByPosition(state.teams);
+        state.screen = 'setup-bracket-choice';
+        render();
+      }}, ['Continue →']);
+    } else {
+      goBtn = el('button', {class:'btn btn-primary', onclick:function(){
+        if (!isAllNamed()) return;
+        state.players.forEach(function(p){ p.name = p.name.trim(); });
+        reassignColorsByPosition(state.players);
+        state.matches = buildMatches(state.mode, state.players, false);
+        state.hasGenerated = true;
+        state.id = generateId();
+        state.name = defaultTournamentName();
+        state.createdAt = new Date().toISOString();
+        state.updatedAt = state.createdAt;
+        state.screen = 'dashboard';
+        persistActiveTournament();
+        render();
+        showToast('Generated ' + state.matches.length + ' matches');
+      }}, ['Generate Matches 🏸']);
+    }
     actions.appendChild(goBtn);
+
+    // Live-validate without a full re-render (so focus/cursor position is
+    // never lost while typing names). Runs once immediately to set initial state.
+    function isAllNamed(){
+      return state.players.every(function(p){ return p.name && p.name.trim().length > 0; });
+    }
+    function revalidate(){
+      if (isAllNamed()){
+        goBtn.removeAttribute('disabled');
+        errBox.style.display = 'none';
+      } else {
+        goBtn.setAttribute('disabled', 'disabled');
+        errBox.textContent = 'Give every ' + (isDoublesTourney ? 'player' : 'player') + ' a name to continue.';
+        errBox.style.display = '';
+      }
+    }
+    revalidate();
+    card.appendChild(actions);
+
+    wrap.appendChild(card);
+    return wrap;
+  }
+
+  /* ============================================================
+     SETUP: TOURNEY BRACKET CHOICE
+  ============================================================ */
+  function renderBracketChoiceScreen(){
+    var comps = getTourneyCompetitors();
+    var skel = buildBracketSkeleton(comps.length);
+    var unit = state.mode === '2v2' ? 'Teams' : 'Players';
+
+    var wrap = el('div', {class:'setup-wrap'});
+    var card = el('div', {class:'setup-card'});
+    card.appendChild(brandBlock());
+    card.appendChild(el('h2', {}, ['Ready to build the bracket']));
+    card.appendChild(el('p', {class:'setup-sub'}, ['Review the summary, then choose how Round 1 is decided.']));
+
+    var preview = el('div', {class:'combo-preview'});
+    preview.appendChild(el('div', {class:'summary-title'}, ['Summary']));
+    var grid = el('div', {class:'summary-grid'});
+    grid.appendChild(summaryStat(comps.length, unit));
+    grid.appendChild(summaryStat(state.mode === '1v1' ? 'Singles' : 'Doubles', 'Format'));
+    grid.appendChild(summaryStat(skel.slotCount, 'Bracket Slots'));
+    preview.appendChild(grid);
+    var grid2 = el('div', {class:'summary-grid'});
+    grid2.appendChild(summaryStat(skel.byes, 'BYEs'));
+    grid2.appendChild(summaryStat(skel.rounds, 'Rounds'));
+    grid2.appendChild(summaryStat(roundLabelFor(skel.slotCount), 'Round 1'));
+    preview.appendChild(grid2);
+    card.appendChild(preview);
+
+    var grid3 = el('div', {class:'mode-grid', style:'margin-top:18px;'});
+    var manualCard = el('div', {class:'mode-card', onclick:actionOpenManualEditor});
+    manualCard.appendChild(el('span', {class:'icon'}, ['🎯']));
+    manualCard.appendChild(el('div', {class:'title'}, ['Customize Bracket Manually']));
+    manualCard.appendChild(el('div', {class:'desc'}, ['Choose exactly who plays whom in Round 1.']));
+    grid3.appendChild(manualCard);
+
+    var randomCard = el('div', {class:'mode-card', onclick:actionRandomizeBracket});
+    randomCard.appendChild(el('span', {class:'icon'}, ['🎲']));
+    randomCard.appendChild(el('div', {class:'title'}, ['Randomize Matchups']));
+    randomCard.appendChild(el('div', {class:'desc'}, ['Shuffle everyone into the bracket instantly.']));
+    grid3.appendChild(randomCard);
+    card.appendChild(grid3);
+
+    var actions = el('div', {class:'setup-actions'});
+    actions.appendChild(el('button', {class:'btn btn-ghost', onclick:function(){
+      state.screen = 'setup-players'; render();
+    }}, ['← Back']));
+    card.appendChild(actions);
+
+    wrap.appendChild(card);
+    return wrap;
+  }
+
+  /* ============================================================
+     SETUP: MANUAL BRACKET EDITOR
+  ============================================================ */
+  var editorSelectedIdx = null;
+  function renderBracketEditorScreen(){
+    var slots = state.editorSlots;
+    var comps = getTourneyCompetitors();
+    var byId = {}; comps.forEach(function(c){ byId[c.id] = c; });
+
+    var wrap = el('div', {class:'setup-wrap'});
+    var card = el('div', {class:'setup-card', style:'max-width:820px;'});
+    card.appendChild(brandBlock());
+    card.appendChild(el('h2', {}, ['Set Round 1 matchups']));
+    card.appendChild(el('p', {class:'setup-sub'}, ['Tap two slots to swap them. BYE slots are shown clearly — swap them around too if you want a different competitor to receive the bye.']));
+
+    var err = validateSlots(slots, comps.map(function(c){ return c.id; }));
+    if (err) card.appendChild(el('div', {class:'error-text'}, [err]));
+
+    var grid = el('div', {class:'bracket-editor-grid'});
+    var numPairs = slots.length / 2;
+    for (var p = 0; p < numPairs; p++){
+      var pairWrap = el('div', {class:'bracket-editor-pair'});
+      [0,1].forEach(function(side){
+        var slotIdx = p*2 + side;
+        var compId = slots[slotIdx];
+        var comp = compId !== null ? byId[compId] : null;
+        var isSelected = editorSelectedIdx === slotIdx;
+        var slotEl = el('div', {
+          class: 'bracket-editor-slot' + (comp ? '' : ' bye') + (isSelected ? ' selected' : ''),
+          onclick: (function(si){
+            return function(){
+              if (editorSelectedIdx === null){ editorSelectedIdx = si; render(); return; }
+              if (editorSelectedIdx === si){ editorSelectedIdx = null; render(); return; }
+              var tmp = slots[si]; slots[si] = slots[editorSelectedIdx]; slots[editorSelectedIdx] = tmp;
+              editorSelectedIdx = null;
+              render();
+            };
+          })(slotIdx)
+        });
+        if (comp) slotEl.appendChild(el('span', {class:'dot', style:'background:' + comp.color + ';'}));
+        slotEl.appendChild(el('span', {}, [comp ? comp.label : 'BYE']));
+        pairWrap.appendChild(slotEl);
+      });
+      grid.appendChild(pairWrap);
+    }
+    card.appendChild(grid);
+
+    var actions = el('div', {class:'setup-actions'});
+    actions.appendChild(el('button', {class:'btn btn-ghost', onclick:function(){
+      state.editorSlots = null; editorSelectedIdx = null;
+      state.screen = 'setup-bracket-choice'; render();
+    }}, ['← Back']));
+    var rightActions = el('div', {style:'display:flex;gap:10px;'});
+    rightActions.appendChild(el('button', {class:'btn btn-outline btn-sm', onclick:function(){
+      var comps2 = comps.map(function(c){ return c.id; });
+      var skel = buildBracketSkeleton(comps2.length);
+      state.editorSlots = assignSlotsRandom(comps2, skel.slotCount, skel.byes);
+      editorSelectedIdx = null;
+      render();
+    }}, ['🎲 Randomize']));
+    rightActions.appendChild(el('button', {class:'btn btn-outline btn-sm', onclick:function(){
+      var comps3 = comps.map(function(c){ return c.id; });
+      var skel3 = buildBracketSkeleton(comps3.length);
+      state.editorSlots = assignSlotsRandom(comps3, skel3.slotCount, skel3.byes);
+      editorSelectedIdx = null;
+      render();
+    }}, ['↺ Reset']));
+    var confirmBtn = el('button', {class:'btn btn-primary', onclick:function(){
+      editorSelectedIdx = null;
+      actionConfirmManualBracket();
+    }}, ['Confirm Bracket ✓']);
+    if (err) confirmBtn.setAttribute('disabled', 'disabled');
+    rightActions.appendChild(confirmBtn);
+    actions.appendChild(rightActions);
     card.appendChild(actions);
 
     wrap.appendChild(card);
@@ -2454,6 +3330,333 @@
   }
 
   /* ============================================================
+     TOURNEY DASHBOARD
+  ============================================================ */
+  function renderTourneyDashboard(){
+    var app = el('div', {class:'app'});
+    app.appendChild(renderTourneyTopbar());
+
+    var layout = el('div', {class:'layout tourney-layout'});
+    var main = el('div', {class:'panel bracket-panel'});
+    main.appendChild(renderBracketTabs());
+    main.appendChild(renderBracketVisual());
+    main.appendChild(renderTourneyMatchList());
+    layout.appendChild(main);
+    layout.appendChild(renderTourneyStandingsPanel());
+    app.appendChild(layout);
+
+    if (state.mobileStandingsOpen){
+      app.appendChild(el('div', {class:'standings-sheet-backdrop show', onclick:function(){
+        state.mobileStandingsOpen = false; render();
+      }}));
+    }
+    return app;
+  }
+
+  function renderTourneyTopbar(){
+    var bar = el('div', {class:'topbar'});
+    var left = el('div', {class:'topbar-left'});
+    left.appendChild(el('div', {class:'mark', html: logoSvg()}));
+    var titleBlock = el('div', {});
+    titleBlock.appendChild(el('div', {class:'topbar-title'}, [state.name || 'Shuttle Draw']));
+    var comps = getTourneyCompetitors();
+    titleBlock.appendChild(el('div', {class:'topbar-sub'}, [
+      (state.mode === '1v1' ? 'Singles' : 'Doubles') + ' Tourney · ' + comps.length + (state.mode==='2v2'?' teams':' players') + ' · ' + state.bracket.slotCount + '-slot bracket'
+    ]));
+    left.appendChild(titleBlock);
+    bar.appendChild(left);
+
+    var playable = state.bracket.matches.filter(function(m){ return m.status !== 'bye'; });
+    var completed = playable.filter(function(m){ return m.status === 'completed'; }).length;
+    var total = playable.length;
+    var pct = total ? Math.round(completed/total*100) : 0;
+    var pw = el('div', {class:'progress-wrap'});
+    pw.appendChild(el('div', {class:'progress-label'}, [
+      el('span', {}, ['Tournament progress']),
+      el('span', {}, [completed + ' / ' + total + ' matches'])
+    ]));
+    var track = el('div', {class:'progress-track'});
+    track.appendChild(el('div', {class:'progress-fill', style:'width:' + pct + '%;'}));
+    pw.appendChild(track);
+
+    var champ = tourneyChampionId();
+    var statusLine;
+    if (champ){
+      statusLine = '🏆 Champion: ' + competitorById(champ).label;
+    } else {
+      var final = tourneyFinalMatch();
+      if (final && final.competitor1 !== null && final.competitor2 !== null){
+        statusLine = 'Finalists: ' + competitorById(final.competitor1).label + ' vs ' + competitorById(final.competitor2).label;
+      } else if (final && (final.competitor1 !== null || final.competitor2 !== null)){
+        statusLine = 'Current Leader: ' + competitorById(final.competitor1 !== null ? final.competitor1 : final.competitor2).label;
+      } else {
+        statusLine = 'In progress — Round: ' + currentTourneyRoundLabel();
+      }
+    }
+    pw.appendChild(el('div', {class:'phase-progress-line'}, [statusLine]));
+    bar.appendChild(pw);
+
+    var actions = el('div', {class:'topbar-actions'});
+    actions.appendChild(el('button', {class:'btn btn-outline btn-sm standings-toggle-btn', onclick:function(){
+      state.mobileStandingsOpen = true; render();
+    }}, ['📊 Standings']));
+
+    var menuWrap = el('div', {class:'menu-wrap'});
+    menuWrap.appendChild(el('button', {class:'btn btn-cork btn-sm', onclick:function(e){
+      e.stopPropagation(); menuOpen = !menuOpen; render();
+    }}, ['☰ Tournament ▾']));
+
+    if (menuOpen){
+      menuWrap.appendChild(el('div', {class:'menu-overlay', onclick:function(){ menuOpen = false; render(); }}));
+      var dd = el('div', {class:'menu-dropdown'});
+      function item(label, fn, danger){
+        return el('button', {class:'menu-item' + (danger ? ' danger' : ''), onclick:function(){ menuOpen = false; fn(); }}, [label]);
+      }
+      dd.appendChild(el('div', {class:'menu-section-label'}, ['Bracket']));
+      dd.appendChild(item('🧹 Reset Match Results', actionResetMatchResults));
+      dd.appendChild(item('🔀 Reset Bracket Layout', actionResetBracketLayout));
+
+      dd.appendChild(el('div', {class:'menu-divider'}));
+      dd.appendChild(el('div', {class:'menu-section-label'}, ['Tournament']));
+      dd.appendChild(item('＋ New Tournament', function(){
+        var hasResults = state.bracket.matches.some(function(m){ return m.status === 'completed'; });
+        if (hasResults){
+          confirmAction({
+            title: 'Start a new tournament?',
+            body: '"' + (state.name || 'This tournament') + '" is already saved and stays available under Saved Tournaments — this just clears the screen to start a fresh one.',
+            confirmLabel: 'Start new', onConfirm: actionNewTournament
+          });
+        } else actionNewTournament();
+      }));
+      dd.appendChild(item('📂 Saved Tournaments', function(){ managerOpen = true; render(); }));
+      dd.appendChild(item('💾 Save Tournament', actionSaveTournament));
+      dd.appendChild(item('✏️ Rename Tournament', actionRenameActive));
+
+      dd.appendChild(el('div', {class:'menu-divider'}));
+      dd.appendChild(el('div', {class:'menu-section-label'}, ['Data']));
+      dd.appendChild(item('⬆ Import Tournament', triggerImportFile));
+      dd.appendChild(item('⬇ Export Tournament', exportActiveTournament));
+      dd.appendChild(item('🗄 Export All Tournaments', exportAllTournaments));
+
+      dd.appendChild(el('div', {class:'menu-divider'}));
+      dd.appendChild(el('div', {class:'menu-section-label'}, ['Share']));
+      dd.appendChild(item('🖼 Share Tournament (Image)', openShareImageModal));
+      dd.appendChild(item('📄 Share Full Report (HTML)', shareFullStatistics));
+
+      dd.appendChild(el('div', {class:'menu-divider'}));
+      dd.appendChild(item('🗑 Delete Tournament', actionDeleteActiveTournament, true));
+      menuWrap.appendChild(dd);
+    }
+    actions.appendChild(menuWrap);
+    bar.appendChild(actions);
+    return bar;
+  }
+
+  function currentTourneyRoundLabel(){
+    var m = state.bracket.matches;
+    for (var r = 0; r < state.bracket.rounds; r++){
+      var roundMatches = m.filter(function(x){ return x.round === r; });
+      var unfinished = roundMatches.some(function(x){ return x.status === 'pending' || x.status === 'waiting'; });
+      if (unfinished) return roundMatches[0].roundLabel;
+    }
+    return 'Final';
+  }
+
+  // Requirement #13: desktop shows the full bracket (scrollable); mobile gets
+  // round-by-round tabs instead of squeezing everything onto one screen.
+  function renderBracketTabs(){
+    var wrap = el('div', {class:'bracket-round-tabs'});
+    var rounds = [];
+    for (var r = 0; r < state.bracket.rounds; r++) rounds.push(r);
+    rounds.forEach(function(r){
+      var sample = state.bracket.matches.filter(function(m){ return m.round === r; })[0];
+      var btn = el('button', {
+        class: 'round-tab' + (state.bracketRound === r ? ' active' : ''),
+        onclick: (function(rr){ return function(){ state.bracketRound = rr; render(); }; })(r)
+      }, [sample.roundLabel]);
+      wrap.appendChild(btn);
+    });
+    return wrap;
+  }
+
+  function renderBracketVisual(){
+    var outer = el('div', {class:'bracket-visual'});
+    var scroller = el('div', {class:'bracket-scroller'});
+    for (var r = 0; r < state.bracket.rounds; r++){
+      var roundMatches = state.bracket.matches.filter(function(m){ return m.round === r; });
+      var col = el('div', {class:'bracket-col' + (state.bracketRound === r ? ' mobile-visible' : '')});
+      col.appendChild(el('div', {class:'bracket-col-title'}, [roundMatches[0].roundLabel]));
+      var innerWrap = el('div', {class:'bracket-col-matches'});
+      roundMatches.forEach(function(m){ innerWrap.appendChild(renderBracketMatchCard(m)); });
+      col.appendChild(innerWrap);
+      scroller.appendChild(col);
+    }
+    outer.appendChild(scroller);
+    return outer;
+  }
+
+  function bracketCompetitorRow(compId, isWinner, score){
+    var comp = competitorById(compId);
+    var row = el('div', {class:'bracket-competitor' + (isWinner ? ' winner' : '')});
+    if (comp){
+      row.appendChild(el('span', {class:'dot', style:'background:' + comp.color + ';'}));
+      row.appendChild(el('span', {class:'bracket-competitor-name'}, [comp.label]));
+    } else {
+      row.appendChild(el('span', {class:'bracket-competitor-name tbd'}, ['TBD']));
+    }
+    if (score !== null && score !== undefined) row.appendChild(el('span', {class:'bracket-score'}, [String(score)]));
+    return row;
+  }
+
+  function renderBracketMatchCard(m){
+    var card = el('div', {class:'bracket-match status-' + m.status});
+    card.appendChild(el('div', {class:'bracket-match-num'}, ['Match ' + (m.round+1) + '.' + (m.position+1)]));
+
+    if (m.status === 'bye'){
+      var comp = competitorById(m.winner);
+      card.appendChild(bracketCompetitorRow(m.winner, true, null));
+      card.appendChild(el('div', {class:'bye-line'}, ['BYE → ADVANCES']));
+      return card;
+    }
+
+    card.appendChild(bracketCompetitorRow(m.competitor1, m.status === 'completed' && m.winner === m.competitor1, m.status === 'completed' ? m.score1 : null));
+    card.appendChild(bracketCompetitorRow(m.competitor2, m.status === 'completed' && m.winner === m.competitor2, m.status === 'completed' ? m.score2 : null));
+
+    if (m.status === 'waiting'){
+      card.appendChild(el('div', {class:'bracket-waiting'}, ['Awaiting previous round']));
+    } else if (m.status === 'pending'){
+      var row = el('div', {class:'bracket-score-entry'});
+      var in1 = el('input', {type:'number', min:'0', class:'score-input', placeholder:'—'});
+      var in2 = el('input', {type:'number', min:'0', class:'score-input', placeholder:'—'});
+      row.appendChild(in1); row.appendChild(el('span',{},['–'])); row.appendChild(in2);
+      card.appendChild(row);
+      card.appendChild(el('button', {class:'btn btn-primary btn-sm', style:'margin-top:8px;width:100%;', onclick:function(){
+        var v1 = in1.value.trim(), v2 = in2.value.trim();
+        if (v1 === '' || v2 === '' || isNaN(Number(v1)) || isNaN(Number(v2))){ showToast('Enter both scores to save'); return; }
+        if (Number(v1) === Number(v2)){ showToast("Badminton matches can't end in a tie"); return; }
+        completeBracketMatch(m, Number(v1), Number(v2));
+        persistActiveTournament();
+        render();
+        if (isTourneyChampionDecided()) showToast('🏆 ' + competitorById(tourneyChampionId()).label + ' is the Champion!');
+        else showToast('Match saved');
+      }}, ['Save Score']));
+    } else if (m.status === 'completed'){
+      card.appendChild(el('button', {class:'btn btn-outline btn-sm', style:'margin-top:8px;width:100%;', onclick:function(){
+        confirmAction({
+          title: 'Edit this score?',
+          body: 'If a later round already used this result, you\u2019ll need to fix those matches too.',
+          confirmLabel: 'Edit score',
+          onConfirm: function(){
+            m.score1 = null; m.score2 = null; m.winner = null; m.loser = null; m.status = 'pending';
+            persistActiveTournament(); render();
+          }
+        });
+      }}, ['Edit Score']));
+    }
+    return card;
+  }
+
+  function renderTourneyMatchList(){
+    var panel = el('div', {class:'panel', style:'margin-top:16px;'});
+    var head = el('div', {class:'panel-head'});
+    head.appendChild(el('h2', {}, ['All Matches']));
+    var filters = el('div', {class:'filters'});
+    ['all','pending','completed'].forEach(function(f){
+      var label = f === 'all' ? 'All' : (f === 'pending' ? 'Pending' : 'Completed');
+      filters.appendChild(el('button', {class: state.bracketFilter === f ? 'active' : '', onclick:function(){
+        state.bracketFilter = f; render();
+      }}, [label]));
+    });
+    head.appendChild(filters);
+    panel.appendChild(head);
+
+    var scroll = el('div', {class:'matches-scroll'});
+    var byRound = {};
+    state.bracket.matches.forEach(function(m){ (byRound[m.round] = byRound[m.round] || []).push(m); });
+    var anyVisible = false;
+    for (var r = 0; r < state.bracket.rounds; r++){
+      var matches = (byRound[r] || []).filter(function(m){ return m.status !== 'bye'; });
+      var visible = matches.filter(function(m){ return state.bracketFilter === 'all' || m.status === state.bracketFilter; });
+      if (!visible.length) continue;
+      anyVisible = true;
+      var completedInRound = matches.filter(function(m){ return m.status === 'completed'; }).length;
+      var header = el('div', {class:'phase-header'});
+      header.appendChild(el('div', {class:'phase-title'}, [(matches[0] || byRound[r][0]).roundLabel.toUpperCase()]));
+      header.appendChild(el('div', {class:'phase-status' + (completedInRound === matches.length ? ' complete' : '')}, [
+        completedInRound + ' / ' + matches.length + ' played'
+      ]));
+      scroll.appendChild(header);
+      var grid = el('div', {class:'match-grid'});
+      visible.forEach(function(m){
+        var row = el('div', {class:'match-card' + (m.status === 'completed' ? ' completed' : '')});
+        var head2 = el('div', {class:'match-card-head'});
+        head2.appendChild(el('div', {class:'match-num'}, [m.roundLabel.toUpperCase() + ' #' + (m.position+1)]));
+        head2.appendChild(el('div', {class:'status-pill ' + m.status}, [m.status === 'completed' ? 'Completed' : (m.status === 'waiting' ? 'Waiting' : 'Pending')]));
+        row.appendChild(head2);
+        var teamsRow = el('div', {class:'teams-row'});
+        teamsRow.appendChild(bracketCompetitorRow(m.competitor1, m.status==='completed' && m.winner===m.competitor1, m.status==='completed'?m.score1:null));
+        teamsRow.appendChild(el('div', {class:'vs-mark'}, ['VS']));
+        teamsRow.appendChild(bracketCompetitorRow(m.competitor2, m.status==='completed' && m.winner===m.competitor2, m.status==='completed'?m.score2:null));
+        row.appendChild(teamsRow);
+        grid.appendChild(row);
+      });
+      scroll.appendChild(grid);
+    }
+    if (!anyVisible){
+      scroll.appendChild(el('div', {class:'empty-state'}, [el('div', {class:'big'}, ['🏸']), el('div', {}, ['No matches to show here.'])]));
+    }
+    panel.appendChild(scroll);
+    return panel;
+  }
+
+  function renderTourneyStandingsPanel(){
+    var panel = el('div', {class:'panel standings-panel' + (state.mobileStandingsOpen ? ' sheet-open' : '')});
+    var head = el('div', {class:'panel-head'});
+    head.appendChild(el('h2', {}, ['Standings']));
+    if (state.mobileStandingsOpen){
+      head.appendChild(el('button', {class:'btn btn-ghost btn-sm', onclick:function(){ state.mobileStandingsOpen = false; render(); }}, ['✕']));
+    }
+    panel.appendChild(head);
+
+    var finish = computeTourneyFinish();
+    var stats = computeTourneyStats();
+    var comps = getTourneyCompetitors();
+    var finishOrder = {'Champion':0,'Runner-up':1,'Semifinalist':2,'Quarterfinalist':3};
+    function rank(c){
+      var f = finish[c.id];
+      if (finishOrder.hasOwnProperty(f)) return finishOrder[f];
+      if (f === 'Active') return 50;
+      var n = parseInt((f||'').replace('Round of ',''), 10);
+      return isNaN(n) ? 99 : (100 - n);
+    }
+    comps = comps.slice().sort(function(a,b){
+      var ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return (stats[b.id].wins - stats[a.id].wins) || ((stats[b.id].pf - stats[b.id].pa) - (stats[a.id].pf - stats[a.id].pa));
+    });
+
+    var scroll = el('div', {class:'standings-scroll'});
+    comps.forEach(function(c, i){
+      var s = stats[c.id];
+      var row = el('div', {class:'standings-card'});
+      row.appendChild(el('div', {class:'standings-rank'}, [String(i+1)]));
+      var mid = el('div', {class:'standings-mid'});
+      mid.appendChild(el('div', {class:'standings-name'}, [
+        el('span', {class:'dot', style:'background:' + c.color + ';'}), ' ' + c.label
+      ]));
+      mid.appendChild(el('div', {class:'standings-finish'}, [finish[c.id]]));
+      row.appendChild(mid);
+      var right = el('div', {class:'standings-stats'});
+      right.appendChild(el('div', {}, [s.wins + 'W – ' + s.losses + 'L']));
+      right.appendChild(el('div', {class:'standings-sub'}, [s.pf + '–' + s.pa + ' pts']));
+      row.appendChild(right);
+      scroll.appendChild(row);
+    });
+    panel.appendChild(scroll);
+    return panel;
+  }
+
+  /* ============================================================
      SAVED TOURNAMENTS MANAGER
   ============================================================ */
   function renderManagerModal(){
@@ -2479,11 +3682,13 @@
     } else {
       var list = el('div', {class:'manager-list'});
       records.forEach(function(r){
-        var total = r.matches.length;
-        var completed = r.matches.filter(function(m){ return m.status === 'completed'; }).length;
+        var isTourney = r.type === 'tourney';
+        var playable = isTourney ? r.bracket.matches.filter(function(m){ return m.status !== 'bye'; }) : r.matches;
+        var total = playable.length;
+        var completed = playable.filter(function(m){ return m.status === 'completed'; }).length;
         var pct = total ? Math.round(completed / total * 100) : 0;
         var statusCls = completed === 0 ? 'idle' : completed < total ? 'progress' : 'done';
-        var statusLbl = completed === 0 ? 'Not Started' : completed < total ? 'In Progress' : 'Completed';
+        var statusLbl = completed === 0 ? 'Not Started' : completed < total ? 'In Progress' : (isTourney ? 'Champion Crowned' : 'Completed');
         var isActive = r.id === state.id;
 
         var itemEl = el('div', {class:'manager-item'});
@@ -2491,12 +3696,15 @@
         var nameWrap = el('div', {});
         nameWrap.appendChild(el('span', {class:'manager-item-name'}, [r.name || 'Untitled Tournament']));
         if (isActive) nameWrap.appendChild(el('span', {class:'tourney-card-active-tag'}, ['ACTIVE']));
+        if (isTourney) nameWrap.appendChild(el('span', {class:'tourney-card-active-tag', style:'background:var(--cork);margin-left:6px;'}, ['TOURNEY']));
         top.appendChild(nameWrap);
         top.appendChild(el('span', {class:'manager-item-status ' + statusCls}, [statusLbl]));
         itemEl.appendChild(top);
 
+        var competitorCount = isTourney ? (r.mode === '1v1' ? r.players.length : r.teams.length) : r.players.length;
+        var unitLabel = isTourney && r.mode === '2v2' ? 'teams' : 'players';
         itemEl.appendChild(el('div', {class:'manager-item-meta'}, [
-          (r.mode === '1v1' ? 'Singles' : 'Doubles') + ' · ' + r.players.length + ' players — ' +
+          (r.mode === '1v1' ? 'Singles' : 'Doubles') + ' · ' + competitorCount + ' ' + unitLabel + ' — ' +
           completed + ' / ' + total + ' matches completed (' + pct + '%) · Updated ' + (relativeDate(r.updatedAt) || '—')
         ]));
 
