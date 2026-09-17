@@ -3,8 +3,66 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shuttle Draw – Free Badminton Tournament & Draw Generator</title>
+<meta name="description" content="Create a fair badminton round-robin draw or a single-elimination knockout tournament bracket online, free. Singles or doubles, any player count, live scores, standings and a champion — no signup, no app to install.">
+<meta name="keywords" content="badminton tournament, badminton tournament bracket generator, badminton draw generator, knockout tournament bracket, round robin badminton, badminton tournament tracker, free tournament bracket maker, badminton scoring app, singles doubles tournament, tournament bracket with byes">
+<meta name="author" content="Shuttle Draw">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#1F5C3F">
+<link rel="canonical" href="https://shuttledraw.vercel.app/">
 <link rel="icon" href="/favicon.ico?v=2">
-<title>Shuttle Draw — Badminton Tournament Tracker</title>
+<link rel="apple-touch-icon" href="/favicon.ico?v=2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Shuttle Draw">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Shuttle Draw">
+<meta property="og:title" content="Shuttle Draw – Free Badminton Tournament & Draw Generator">
+<meta property="og:description" content="Create a fair badminton round-robin draw or a knockout tournament bracket online, free. Singles or doubles, live scores, standings and a champion — no signup required.">
+<meta property="og:url" content="https://shuttledraw.vercel.app/">
+<meta property="og:image" content="https://shuttledraw.vercel.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Shuttle Draw – Free Badminton Tournament & Draw Generator">
+<meta name="twitter:description" content="Fair round-robin draws and knockout tournament brackets for badminton — singles or doubles, free, no signup.">
+<meta name="twitter:image" content="https://shuttledraw.vercel.app/og-image.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Shuttle Draw",
+  "alternateName": "Shuttle Draw Badminton Tournament Tracker",
+  "url": "https://shuttledraw.vercel.app/",
+  "description": "Free online badminton tournament and draw generator. Create round-robin draws or single-elimination knockout brackets for singles or doubles, with automatic BYE handling, live scores, standings and shareable reports.",
+  "applicationCategory": "SportsApplication",
+  "operatingSystem": "Any (runs in a web browser)",
+  "browserRequirements": "Requires JavaScript",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "featureList": [
+    "Round-robin badminton draw generator with fairness balancing",
+    "Single-elimination knockout tournament brackets",
+    "Singles and doubles support",
+    "Automatic BYE handling for 3 to 48 competitors",
+    "Live standings, statistics and player performance",
+    "Shareable tournament bracket images and HTML reports",
+    "Works entirely in the browser, no account or installation required"
+  ],
+  "inLanguage": "en"
+}
+</script>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -50,10 +108,15 @@
   .setup-wrap{
     min-height:100vh;
     display:flex;
+    flex-direction:column;
     align-items:center;
     justify-content:center;
     padding:24px;
   }
+  .landing-hero{max-width:620px;text-align:center;margin-bottom:18px;}
+  .landing-hero h1{font-family:'Outfit',system-ui,sans-serif;font-size:25px;font-weight:800;margin:0 0 8px;color:var(--court-deep);line-height:1.25;}
+  .landing-hero p{color:var(--ink-soft);font-size:14px;margin:0;line-height:1.5;}
+  @media (max-width:480px){ .landing-hero h1{font-size:20px;} }
   .setup-card{
     background:var(--paper-raised);
     border-radius:20px;
@@ -538,6 +601,23 @@
 </style>
 </head>
 <body>
+
+<!-- Seen by search engines and users when JavaScript can't run; the live app
+     below replaces this automatically once it loads. Kept in sync with the
+     on-screen intro text and the JSON-LD description above. -->
+<noscript>
+  <div style="max-width:640px;margin:60px auto;padding:0 24px;font-family:system-ui,sans-serif;color:#152A1F;line-height:1.6;">
+    <h1>Shuttle Draw — Free Badminton Tournament &amp; Draw Generator</h1>
+    <p>Shuttle Draw is a free online tool for running badminton tournaments. Generate a
+    fair round-robin <strong>draw</strong> where every player faces everyone else a
+    balanced number of times, or run a full single-elimination <strong>knockout
+    tournament bracket</strong> for singles or doubles — from 3 up to 48 players or
+    teams, with automatic BYE handling. Track live scores, standings and player
+    statistics, and share the results as an image or report.</p>
+    <p>This app needs JavaScript enabled in your browser to run. Please enable
+    JavaScript and reload the page.</p>
+  </div>
+</noscript>
 
 <div id="root"></div>
 <div id="toast" class="toast"></div>
@@ -2846,6 +2926,16 @@
   ============================================================ */
   function renderTypeScreen(){
     var wrap = el('div', {class:'setup-wrap'});
+
+    // Real, visible page heading (not just metadata) — the app's primary
+    // keyword-relevant intro, shown to every visitor and to search engines.
+    var hero = el('div', {class:'landing-hero'});
+    hero.appendChild(el('h1', {}, ['Shuttle Draw \u2014 Free Badminton Tournament & Draw Generator']));
+    hero.appendChild(el('p', {}, [
+      'Build a fair round-robin draw or a full knockout tournament bracket for badminton \u2014 singles or doubles, 3 to 48 players, with live scores and standings. Free, no signup.'
+    ]));
+    wrap.appendChild(hero);
+
     var card = el('div', {class:'setup-card'});
 
     var brandRow = el('div', {class:'brand-row'});
@@ -3955,8 +4045,8 @@
       // VS marker with the name pushed to the outer edge — the right-hand
       // side is a mirror image of the left, not a plain copy of it.
       if (scoreEl) row.appendChild(scoreEl);
-      row.appendChild(nameEl);
       if (dotEl) row.appendChild(dotEl);
+      row.appendChild(nameEl);
     } else {
       if (dotEl) row.appendChild(dotEl);
       row.appendChild(nameEl);
