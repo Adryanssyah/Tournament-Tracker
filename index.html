@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ============================================================
+     SEO
+     Replace https://shuttledraw.vercel.app/ below with the real domain once this
+     file is hosted, and add a matching /sitemap.xml + /robots.txt at
+     the site root (see the sitemap.xml / robots.txt notes shipped
+     alongside this file) so search engines can find and index it.
+============================================================ -->
 <title>Shuttle Draw – Free Badminton Tournament & Draw Generator</title>
 <meta name="description" content="Create a fair badminton round-robin draw or a single-elimination knockout tournament bracket online, free. Singles or doubles, any player count, live scores, standings and a champion — no signup, no app to install.">
 <meta name="keywords" content="badminton tournament, badminton tournament bracket generator, badminton draw generator, knockout tournament bracket, round robin badminton, badminton tournament tracker, free tournament bracket maker, badminton scoring app, singles doubles tournament, tournament bracket with byes">
@@ -15,6 +23,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Shuttle Draw">
 
+<!-- Open Graph / social previews (WhatsApp, Facebook, LinkedIn, Discord, iMessage...) -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Shuttle Draw">
 <meta property="og:title" content="Shuttle Draw – Free Badminton Tournament & Draw Generator">
@@ -25,6 +34,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="en_US">
 
+<!-- Twitter / X card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Shuttle Draw – Free Badminton Tournament & Draw Generator">
 <meta name="twitter:description" content="Fair round-robin draws and knockout tournament brackets for badminton — singles or doubles, free, no signup.">
@@ -32,6 +42,14 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<!-- Non-render-blocking Google Fonts load: the stylesheet is fetched with
+     low priority (media="print" doesn't match on screen, so it doesn't block
+     first paint) then swapped to "all" once loaded. Real browsers with JS get
+     this; the noscript link is the fallback for the rare case JS is off. -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"></noscript>
 
 <script type="application/ld+json">
 {
@@ -64,7 +82,7 @@
 </script>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+  
 
   :root{
     --paper:#F1F3EC;
@@ -76,8 +94,9 @@
     --court-tint:#E4EFE8;
     --cork:#D98E3B;
     --cork-deep:#B5701F;
+    --cork-text:#8A5316;
     --line:#DDE2D6;
-    --win:#2F9E58;
+    --win:#186B3A;
     --loss:#C0453B;
     --shadow: 0 1px 2px rgba(21,42,31,0.06), 0 6px 16px rgba(21,42,31,0.06);
     --radius: 14px;
@@ -221,7 +240,7 @@
   .btn-primary:disabled{background:#B9C4BC;cursor:not-allowed;}
   .btn-ghost{background:transparent;color:var(--ink-soft);}
   .btn-ghost:hover{color:var(--ink);}
-  .btn-cork{background:var(--cork);color:#fff;}
+  .btn-cork{background:var(--cork);color:var(--court-deep);}
   .btn-cork:hover{background:var(--cork-deep);}
   .btn-outline{background:var(--paper-raised);color:var(--ink);border:1.5px solid var(--line);}
   .btn-outline:hover{border-color:var(--court);}
@@ -477,7 +496,7 @@
     padding:7px 13px;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;
   }
   .round-tab:hover{border-color:var(--court);color:var(--court-deep);}
-  .round-tab.champion-tab{border-color:var(--cork);color:var(--cork);}
+  .round-tab.champion-tab{border-color:var(--cork);color:var(--cork-text);}
 
   .bracket-scroller-outer{position:relative;overflow-x:auto;overflow-y:hidden;padding:8px 4px 18px;-webkit-overflow-scrolling:touch;}
   .bracket-scroller{position:relative;display:flex;gap:0;min-width:max-content;}
@@ -502,7 +521,7 @@
   .bracket-match.status-pending{border-color:var(--cork);box-shadow:0 0 0 3px rgba(217,142,59,0.12), var(--shadow);}
   .bracket-match-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
   .bracket-match-num{font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.4px;text-transform:uppercase;}
-  .active-badge{font-size:10px;font-weight:800;color:var(--cork);letter-spacing:.3px;}
+  .active-badge{font-size:10px;font-weight:800;color:var(--cork-text);letter-spacing:.3px;}
   .bracket-competitor{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:15px;font-weight:700;}
   .bracket-competitor-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .bracket-competitor.mirrored .bracket-competitor-name{text-align:right;}
@@ -525,7 +544,7 @@
   .champion-trophy.dim{opacity:.3;}
   .champion-name{font-weight:800;font-size:16px;display:flex;align-items:center;gap:6px;justify-content:center;}
   .champion-name.tbd{color:var(--ink-soft);font-weight:600;font-style:italic;font-size:13px;}
-  .champion-tag{font-size:11px;font-weight:800;letter-spacing:1px;color:var(--cork);}
+  .champion-tag{font-size:11px;font-weight:800;letter-spacing:1px;color:var(--cork-text);}
 
   /* ---- Bracket editor (setup) reuses bracket-col styling ---- */
   .bracket-editor-grid{display:flex;flex-direction:column;gap:10px;max-height:48vh;overflow-y:auto;margin-bottom:6px;}
@@ -554,7 +573,7 @@
   .standings-full-table td.pos{color:var(--win);font-weight:700;}
   .standings-full-table td.neg{color:var(--loss);font-weight:700;}
   .finish-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:var(--paper-raised);border:1px solid var(--line);}
-  .finish-champion{background:#FCEFDC;border-color:var(--cork);color:var(--cork);}
+  .finish-champion{background:#FCEFDC;border-color:var(--cork);color:var(--cork-text);}
   .finish-runner-up{background:#EFF3ED;border-color:var(--court);color:var(--court-deep);}
   .finish-active{background:var(--court-tint);color:var(--court-deep);border-color:transparent;}
 
@@ -601,7 +620,10 @@
 </style>
 </head>
 <body>
-  
+
+<!-- Seen by search engines and users when JavaScript can't run; the live app
+     below replaces this automatically once it loads. Kept in sync with the
+     on-screen intro text and the JSON-LD description above. -->
 <noscript>
   <div style="max-width:640px;margin:60px auto;padding:0 24px;font-family:system-ui,sans-serif;color:#152A1F;line-height:1.6;">
     <h1>Shuttle Draw — Free Badminton Tournament &amp; Draw Generator</h1>
@@ -616,7 +638,7 @@
   </div>
 </noscript>
 
-<div id="root"></div>
+<main id="root"></main>
 <div id="toast" class="toast"></div>
 
 <script>
